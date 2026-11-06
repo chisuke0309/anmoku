@@ -70,6 +70,8 @@ def run_claude(
     cwd: str | Path | None = None,
     add_dirs: list[str | Path] | None = None,
     settings: dict | None = None,
+    env: dict | None = None,
+    permission_mode: str | None = None,
     retries: int = 1,
     log_dir: Path | None = None,
     label: str = "call",
@@ -89,7 +91,7 @@ def run_claude(
         ",".join(tools) if tools else "",
     ]
     if tools:
-        args += ["--allowedTools", ",".join(tools), "--permission-mode", "default"]
+        args += ["--allowedTools", ",".join(tools), "--permission-mode", permission_mode or "default"]
     if system:
         args += ["--system-prompt", system]
     if schema:
@@ -104,7 +106,8 @@ def run_claude(
     for attempt in range(retries + 1):
         t0 = time.time()
         proc = subprocess.run(
-            args, input=prompt, capture_output=True, text=True, cwd=workdir, timeout=900
+            args, input=prompt, capture_output=True, text=True, cwd=workdir, timeout=900,
+            env={**os.environ, **(env or {})},
         )
         secs = time.time() - t0
         try:

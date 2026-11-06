@@ -108,7 +108,9 @@ def gen_design(scn: str, spec: dict, base: Path, which: str) -> str:
         out = base / "test-spec_v1.md"
     elif which == "design_v2":
         design = (base / "agent-design_v1.md").read_text(encoding="utf-8")
-        prompt = f"# 公式の業務フロー\n{flow_md}\n\n# 1版目の設計書\n{design}\n\n# 依頼\n{g['design_request_v2']}"
+        review = base / "review_for_v2.md"
+        rv = f"\n\n# 評価結果\n{review.read_text(encoding='utf-8')}" if review.exists() else ""
+        prompt = f"# 公式の業務フロー\n{flow_md}\n\n# 1版目の設計書\n{design}\n\n# 依頼\n{g['design_request_v2']}{rv}"
         out = base / "agent-design_v2.md"
     else:
         raise ValueError(which)
