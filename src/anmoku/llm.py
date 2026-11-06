@@ -32,11 +32,32 @@ class LLMResult:
     seconds: float
 
 
+def _is_native(path: str) -> bool:
+    try:
+        with open(path, "rb") as f:
+            head = f.read(4)
+        return head in (b"\xcf\xfa\xed\xfe", b"\x7fELF", b"\xca\xfe\xba\xbe") or head.startswith(b"#!")
+    except OSError:
+        return False
+
+
 def claude_bin() -> str:
-    path = os.environ.get("ANMOKU_CLAUDE_BIN") or shutil.which("claude")
-    if not path:
-        raise LLMError("claude コマンドが見つかりません（Claude Code を導入してください）")
-    return path
+    """claude の実行ファイルを返す。ANMOKU_CLAUDE_BIN → PATH → 既知の置き場所の順に、実行できるものを探す。"""
+    candidates = [
+        os.environ.get("ANMOKU_CLAUDE_BIN"),
+        shutil.which("claude"),
+        str(Path.home() / ".local/share/anmoku/claude"),
+        str(Path.home() / ".local/bin/claude"),
+    ]
+    which = shutil.which("claude")
+    if which:
+        real = Path(which).resolve()
+        # npm 版で本体が未展開のときは、同梱のプラットフォーム別パッケージを使う
+        candidates += [str(p) for p in real.parent.parent.glob("node_modules/@anthropic-ai/claude-code-*/claude")]
+    for c in candidates:
+        if c and Path(c).exists() and _is_native(c):
+            return c
+    raise LLMError("実行できる claude コマンドが見つかりません（Claude Code を導入するか ANMOKU_CLAUDE_BIN を設定してください）")
 
 
 def run_claude(
