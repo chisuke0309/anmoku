@@ -70,10 +70,11 @@ def eval_scenario(name: str, runs: int, out: Path, model: str | None, modes: lis
         rec = {"run": r, "quotes": res["quotes"]["kept"], "quotes_total": res["quotes"]["total"], "cost": res["cost_usd"], "stages": []}
         for st in res["stages"]:
             c = st["candidates"]
-            s = {"k": st["k"], "top": next(({"name": x["name"], "score": x["score"]} for x in c if x["category"] not in ("社外", "不明", "組織全体")), None)}
+            s = {"k": st["k"], "hubs": [x["name"] for x in c if x.get("hub_hypothesis")], "top": next(({"name": x["name"], "score": x["score"]} for x in c if x["category"] not in ("社外", "不明", "組織全体")), None)}
             if ans.get("hub"):
                 s["hub_rank"] = tool_rank(c, ans["hub"]["match"])
                 s["pure"] = tool_pure(c, ans["hub"]["match"])
+                s["hub_hyp_ok"] = any(matches(x["name"] + " " + " ".join(x["aliases"]), ans["hub"]["match"]) for x in c if x.get("hub_hypothesis"))
             s["decoys_in_top3"] = [d["name"] for d in ans.get("decoys", []) if (tool_rank(c, d["match"]) or 99) <= 3] if any("match" in d for d in ans.get("decoys", [])) else []
             rec["stages"].append(s)
         return rec
@@ -117,13 +118,13 @@ def summarize(results: list[dict]) -> str:
         lines += [f"## {res['scenario']}（語り{n}本 × {runs}回）", ""]
         has_hub = any("hub_rank" in s for t in res["tool"] for s in t["stages"])
         if has_hub:
-            head = "| k人目まで | ツール：ハブが1位 | ツール：別人が混ざらない |"
+            head = "| k人目まで | ツール：ハブが1位 | ツール：ハブの仮説になった | ツール：別人が混ざらない |"
             for m in modes:
                 head += f" {MODE_LABEL[m]}：1位 | {MODE_LABEL[m]}：上位3 |"
-            lines += [head, "|" + "---|" * (3 + 2 * len(modes))]
+            lines += [head, "|" + "---|" * (4 + 2 * len(modes))]
             for k in range(1, n + 1):
                 t = [t["stages"][k - 1] for t in res["tool"]]
-                row = f"| {k} | {sum(s['hub_rank'] == 1 for s in t)}/{len(t)} | {sum(s['pure'] for s in t)}/{len(t)} |"
+                row = f"| {k} | {sum(s['hub_rank'] == 1 for s in t)}/{len(t)} | {sum(bool(s.get('hub_hyp_ok')) for s in t)}/{len(t)} | {sum(s['pure'] for s in t)}/{len(t)} |"
                 for m in modes:
                     b = [b for b in res["baseline"] if b["k"] == k and b.get("mode", "directed") == m]
                     row += f" {sum(x['hub_rank'] == 1 for x in b)}/{len(b)} | {sum((x['hub_rank'] or 99) <= 3 for x in b)}/{len(b)} |"
@@ -139,7 +140,7 @@ def summarize(results: list[dict]) -> str:
                 ranks = [b["hub_rank"] for b in g]
                 lines.append(f"- {MODE_LABEL['general']}で、全員分を渡したときにハブが出てくる課題の順位：{ranks}")
         else:
-            head = "| k人目まで | ツール：1位（点数） | ツール：おとりが上位3に |"
+            head = "| k人目まで | ツール：1位（点数） | ツール：ハブの仮説を出した回数 |"
             dm = [m for m in modes if m == "directed"]
             for m in dm:
                 head += f" {MODE_LABEL[m]}：挙げた人 | {MODE_LABEL[m]}：おとりを挙げた回数 |"
@@ -147,7 +148,7 @@ def summarize(results: list[dict]) -> str:
             for k in range(1, n + 1):
                 t = [t["stages"][k - 1] for t in res["tool"]]
                 tops = "、".join(f"{s['top']['name']}({s['top']['score']})" if s["top"] else "-" for s in t)
-                row = f"| {k} | {tops} | {sum(bool(s['decoys_in_top3']) for s in t)}/{len(t)} |"
+                row = f"| {k} | {tops} | {sum(bool(s['hubs']) for s in t)}/{len(t)} |"
                 for m in dm:
                     b = [b for b in res["baseline"] if b["k"] == k and b.get("mode", "directed") == m]
                     row += f" {' ／ '.join('・'.join(x['names']) or '（なし）' for x in b)} | {sum(bool(x['decoys_named']) for x in b)}/{len(b)} |"

@@ -63,7 +63,7 @@ def viewer_data(detect: dict, title: str = "") -> dict:
             "added": st["added"],
             "candidates": [
                 {k: c[k] for k in ("key", "name", "aliases", "absence", "absence_reason", "speakers", "deps",
-                                   "waits", "score", "formula", "reason", "merged_from", "prev_score",
+                                   "waits", "score", "formula", "hub_hypothesis", "reason", "merged_from", "prev_score",
                                    "new_aliases", "evidence", "new_evidence")}
                 for c in st["candidates"][:TOP_N]
             ],

@@ -89,4 +89,22 @@ def rank(entities: list[dict], observations: list[dict], flow: Flow) -> list[dic
             ],
         })
     out.sort(key=lambda x: (-x["score"], x["category"] in EXCLUDED, -len(x["evidence"]), x["id"]))
+    mark_hubs(out)
     return out
+
+
+HUB_MIN_SPEAKERS = 2
+HUB_MIN_RATIO = 0.5
+
+
+def mark_hubs(ranked: list[dict]) -> None:
+    """「ハブの仮説」と呼ぶ条件：フローに無い（度合い>0）／2人以上の語りに出る／1位の半分以上の点数。
+
+    1人の語りにしか出ない相手は「候補」にとどめる（ハブ＝複数の人が頼っている相手、のため）。
+    """
+    top = max((c["score"] for c in ranked if c["category"] not in EXCLUDED), default=0)
+    for c in ranked:
+        c["hub_hypothesis"] = bool(
+            c["category"] not in EXCLUDED and c["absence"] > 0 and c["speakers"] >= HUB_MIN_SPEAKERS
+            and top > 0 and c["score"] >= HUB_MIN_RATIO * top
+        )

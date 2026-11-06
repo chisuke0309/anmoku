@@ -59,12 +59,15 @@ def run_detect(interviews_dir: str | Path, flow_path: str | Path, out_dir: str |
     speakers_all = {iv.speaker: iv.title.replace("ヒアリング記録：", "") for iv in ivs}
 
     def _stage(k: int) -> dict:
-        cache = out / f"stage_{k}.json"
-        if reuse and cache.exists():
-            return json.loads(cache.read_text(encoding="utf-8"))
+        # LLM の結果（別名の統合）だけをキャッシュし、点数は毎回 Python で計算し直す
+        cache = out / f"resolve_{k}.json"
         obs = [o for e in extracted[:k] for o in e["observations"]]
-        speakers = {iv.speaker: speakers_all[iv.speaker] for iv in ivs[:k]}
-        entities, cost = resolve(obs, speakers, flow, model=model, log_dir=log_dir, label=f"resolve-stage{k}")
+        if reuse and cache.exists():
+            entities, cost = json.loads(cache.read_text(encoding="utf-8")), 0.0
+        else:
+            speakers = {iv.speaker: speakers_all[iv.speaker] for iv in ivs[:k]}
+            entities, cost = resolve(obs, speakers, flow, model=model, log_dir=log_dir, label=f"resolve-stage{k}")
+            cache.write_text(json.dumps(entities, ensure_ascii=False, indent=2), encoding="utf-8")
         ranked = rank(entities, obs, flow)
         st = {
             "k": k,
@@ -72,7 +75,6 @@ def run_detect(interviews_dir: str | Path, flow_path: str | Path, out_dir: str |
             "candidates": ranked,
             "cost_usd": cost,
         }
-        cache.write_text(json.dumps(st, ensure_ascii=False, indent=2), encoding="utf-8")
         return st
 
     with ThreadPoolExecutor(max_workers=workers) as ex:

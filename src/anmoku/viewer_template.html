@@ -58,6 +58,7 @@ button:disabled{opacity:.4;cursor:default}
 .badge.none{background:#4a1d1d;color:#ff9a9a}
 .badge.half{background:#4a3a1d;color:#ffd08a}
 .badge.lane{background:#1d3a2c;color:#8fe0b5}
+.badge.hubb{background:var(--accent);color:#1b1206}
 .merged{font-size:12px;color:var(--accent2);margin-left:6px}
 .row.jump .card{border-color:var(--hot);box-shadow:0 0 0 2px rgba(255,93,93,.35),0 0 28px rgba(255,93,93,.35);animation:shake .6s}
 @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
@@ -119,6 +120,10 @@ function renderSteps(){
 }
 
 function badge(c){
+  const hub = c.hub_hypothesis ? `<span class="badge hubb">ハブの仮説</span>` : "";
+  return hub + absBadge(c);
+}
+function absBadge(c){
   if (c.absence >= 1) return `<span class="badge none">フローに無い</span>`;
   if (c.absence > 0) return `<span class="badge half">タスク名だけ</span>`;
   return `<span class="badge lane">レーンあり</span>`;

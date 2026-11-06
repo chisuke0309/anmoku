@@ -130,3 +130,14 @@ def test_link_stages_tracks_merge():
     assert last["key"] == k1
     assert last["merged_from"] == ["佐藤さん"]
     assert last["new_aliases"] == ["統括"]
+
+
+def test_hub_hypothesis_needs_two_speakers():
+    o = [obs(1, "01", "課長", "相談"), obs(2, "01", "課長", "待ち"), obs(3, "02", "佐藤さん", "判断"), obs(4, "03", "事務所", "確認")]
+    ents = [
+        {"id": "hub", "name": "工事の課長", "category": "社内の人・役割", "flow_lane": None, "flow_task": None, "observation_ids": ["01#o1", "01#o2", "02#o3"], "reason": ""},
+        {"id": "one", "name": "事務", "category": "社内の人・役割", "flow_lane": None, "flow_task": None, "observation_ids": ["03#o4"], "reason": ""},
+    ]
+    r = {x["id"]: x for x in rank(ents, o, FLOW)}
+    assert r["hub"]["hub_hypothesis"] is True
+    assert r["one"]["hub_hypothesis"] is False   # 1人の語りだけ・点数も低い
