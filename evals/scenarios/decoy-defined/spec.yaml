@@ -68,8 +68,10 @@ answer:
     - name: 田中係長（工程管理）
       aliases: [田中さん, 係長, 工程の人]
       absence: 0.0
+      match: {strong: [田中, 係長, 工程], weak: [], exclude: []}
     - name: 店長
       absence: 0.0
+      match: {strong: [店長], weak: [], exclude: []}
   ledger: []
   design_v1:
     expected_verdict: 差し戻し

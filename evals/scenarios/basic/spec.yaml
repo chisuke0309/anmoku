@@ -106,6 +106,8 @@ answer:
     # 「課長」のうち、経理の山本課長を指すものは混ぜてはいけない
     not_aliases: [山本課長, 経理の課長, 店長]
     absence: 1.0
+    # 候補の照合に使う語：strong のどれかが名前・別名にあれば当たり。weak だけのときは exclude を含まなければ当たり
+    match: {strong: [統括, 佐藤], weak: [課長], exclude: [山本, 経理]}
   decoys:
     - name: 店長
       absence: 0.0
