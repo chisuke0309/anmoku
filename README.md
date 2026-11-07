@@ -83,11 +83,20 @@ flowchart LR
 
 ### Claude Code のプラグインとして
 
-```
-/plugin install anmoku --marketplace chisuke0309/anmoku
+シェルで次を実行します（Claude Code v2.1.319、新しい設定フォルダで通ることを確かめた）。
+
+```bash
+claude plugin install anmoku --marketplace chisuke0309/anmoku
 ```
 
-（古い Claude Code では `/plugin marketplace add chisuke0309/anmoku` のあと `/plugin install anmoku@anmoku`）
+この1行の形は、公式ドキュメントでは Claude Code v2.1.292 以降が必要です。2段に分けた次の形でも入ります（同じく確かめた）。
+
+```bash
+claude plugin marketplace add chisuke0309/anmoku
+claude plugin install anmoku@anmoku
+```
+
+`claude plugin list` に `anmoku@anmoku` が出れば導入済みです。プラグインはコマンド部分を `uv run --project` で動かすので、[uv](https://docs.astral.sh/uv/) も必要です。
 
 導入後、「このヒアリング記録を anmoku で分析して」のように頼むと、Skill が手順に沿って進めます（候補の確認とフローの承認は、利用者に確かめてから進みます）。
 
