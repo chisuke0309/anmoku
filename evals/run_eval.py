@@ -92,7 +92,7 @@ def eval_scenario(name: str, runs: int, out: Path, model: str | None, modes: lis
         from anmoku.ledger import build_ledger
 
         detect = json.loads((tool_out / "detect.json").read_text(encoding="utf-8"))
-        build_ledger(detect, tool_out, model=model)
+        build_ledger(detect, tool_out, model=model, existing_dir=base / "ledger")
         fx = run_fix(base, tool_out, model=model)
         approve_flow(tool_out, by_human=False)
         rec["fix"] = {"rounds": len(fx["rounds"]), "final": fx["rounds"][-1]["review"]["verdict"],

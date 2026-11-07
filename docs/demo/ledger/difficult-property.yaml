@@ -1,5 +1,5 @@
 id: difficult-property
-label: 難あり物件（難しい物件）
+label: 難しい物件(難あり)
 kind: term
 definition: null
 status: needs_answer
@@ -13,15 +13,13 @@ evidence:
   line: 19
   quote: なんか、見て嫌な感じがする家（笑）
   speaker: 伊藤
-- source: interviews/04_sales_senior.md
-  line: 8
-  quote: 普通の物件なら、うーん、二日か三日。
-  speaker: 伊藤
 questions:
-- 「難あり」と判断する物件には、築年数・構造・状態などでどんな特徴がありますか。具体例を教えてください。
-- 普通の物件と難あり物件で、見積もりや工程の進め方はどう変わりますか。
+- 「難あり」と判断する具体的な条件(築年数、構造、状態など)を教えてください。
+- 見て判断するとき、どこを見て、どんな兆候があれば難ありとしますか。
+- 難ありの場合、見積や工程で何を変えますか。
 used_by:
-- agent-design_v1.md#エスカレーション 最終行／未確定事項 5
-- agent-design_v1.md#エスカレーション表（未確定事項の窓口）
-- agent-design_v2.md#古い・状態が怪しい物件の呼び方。年数など
+- agent-design_v1.md#難あり物件 | **定義未確定**（下記
+- test-spec_v1.md#該当するかどうかを断定せず、問い合わせ元
+- agent-design_v2.md#| 難あり物件 | 古い・状態が怪しい物
+origin: new
 note: 仮説。状態の承認は人が行う（anmoku approve）

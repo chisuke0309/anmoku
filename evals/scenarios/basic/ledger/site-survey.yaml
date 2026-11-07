@@ -1,0 +1,10 @@
+id: site-survey
+label: 現地調査
+kind: term
+definition: 営業担当が施主宅を訪問し、採寸・写真撮影・配管や下地の確認を行うこと。見積作成の前に必ず行う。
+status: approved
+owner_hint: 営業担当
+evidence: []
+questions: []
+used_by: []
+note: みどり住設の既存の定義台帳（架空）。公式の業務フローと社内の決まりから作られたもの

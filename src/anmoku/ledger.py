@@ -18,14 +18,19 @@ from .schema import LedgerOut, json_schema
 LEDGER_SYSTEM = agent_prompt("ledger-steward")  # 正本：agents/ledger-steward.md
 
 
-def ledger_prompt(terms: list[dict], hubs: list[dict], flow_lanes: list[str]) -> str:
+def ledger_prompt(terms: list[dict], hubs: list[dict], flow_lanes: list[str], existing: list[dict] | None = None) -> str:
     t = "\n".join(
         f"{x['id']} | 話し手:{x['speaker']} | {x['kind']} | {x['label']} | 知っている人:{x.get('holder') or '-'} | 言葉になっている:{x['defined']} | 「{x['quote']}」"
         for x in terms
     )
     h = "\n".join(f"- {c['name']}（呼び方：{'・'.join(c['aliases'])}／点数 {c['score']}）" for c in hubs)
+    ex = "\n".join(f"- {x['id']}：{x['label']}（{ {'approved': '承認済み', 'draft': '下書き', 'needs_answer': '回答待ち'}.get(x.get('status'), x.get('status'))}）"
+                   f"定義：{x.get('definition') or '未確定'}" for x in (existing or [])) or "（なし）"
     return f"""# 公式フローのレーン
 {'、'.join(flow_lanes)}
+
+# 今ある定義台帳（会社が持っているもの）
+{ex}
 
 # ハブの候補（仮説）
 {h}
@@ -35,12 +40,32 @@ def ledger_prompt(terms: list[dict], hubs: list[dict], flow_lanes: list[str]) ->
 """
 
 
-def build_ledger(detect: dict, out_dir: Path, *, model: str | None = None) -> dict:
+def load_existing(*dirs: Path | None) -> dict[str, dict]:
+    """今ある定義台帳を読む。あとに渡したフォルダ（前回の出力）が優先（承認を引き継ぐため）。"""
+    found: dict[str, dict] = {}
+    for d in dirs:
+        if d and d.exists():
+            for f in sorted(d.glob("*.yaml")):
+                doc = yaml.safe_load(f.read_text(encoding="utf-8")) or {}
+                if doc.get("id"):
+                    found[doc["id"]] = {**found.get(doc["id"], {}), **doc}
+    return found
+
+
+def build_ledger(detect: dict, out_dir: Path, *, model: str | None = None, existing_dir: Path | None = None) -> dict:
+    """定義台帳を作る。今ある台帳（existing_dir）と前回の出力の承認・定義は引き継ぐ。
+
+    - 台帳にあり・承認済み：定義と状態はそのまま。語りの根拠だけを足す
+    - 台帳にあるが未確定：語りの根拠と質問で更新する
+    - 台帳に無い：新しい候補として加える（origin="new"）
+    """
     final = detect["stages"][-1]["candidates"]
     hubs = [c for c in final if c.get("hub_hypothesis")][:3]
     terms = detect["terms"]
+    existing = load_existing(existing_dir, out_dir / "ledger")
+    case_ids = set(load_existing(existing_dir)) if existing_dir else set()
     res = run_claude(
-        ledger_prompt(terms, hubs, detect["flow"]["lanes"]),
+        ledger_prompt(terms, hubs, detect["flow"]["lanes"], list(existing.values())),
         system=LEDGER_SYSTEM,
         schema=json_schema(LedgerOut),
         model=model,
@@ -48,34 +73,57 @@ def build_ledger(detect: dict, out_dir: Path, *, model: str | None = None) -> di
         label="ledger",
     )
     proposal = LedgerOut.model_validate(res.data)
+    result = merge_ledger(proposal, terms, existing, case_ids, hubs)
+    result["cost_usd"] = res.cost_usd
+    write_ledger(result["items"], out_dir / "ledger")
+    (out_dir / "questions.md").write_text(render_questions(result["questions"], hubs), encoding="utf-8")
+    (out_dir / "ledger.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    return result
+
+
+def merge_ledger(proposal: LedgerOut, terms: list[dict], existing: dict[str, dict], case_ids: set[str], hubs: list[dict]) -> dict:
+    """LLM の提案と今ある台帳を合わせる（同じ入力なら同じ結果）。"""
     by_id = {t["id"]: t for t in terms}
-    items = []
+    items: list[dict] = []
+    seen: set[str] = set()
     for kind_group, plist in (("item", proposal.items), ("implicit_rule", proposal.implicit_rules)):
         for p in plist:
             ev = [by_id[r] for r in p.evidence_refs if r in by_id]
-            if not ev:
-                continue  # 根拠が実在しない項目は捨てる
+            if not ev or p.id in seen:
+                continue  # 根拠が実在しない項目・重複は捨てる
+            seen.add(p.id)
+            evidence = [{"source": f"interviews/{e['interview']}.md", "line": e["line"], "quote": e["quote"], "speaker": e["speaker"]} for e in ev]
+            old = existing.get(p.id)
+            if old and old.get("status") == "approved":
+                # 承認済みは人が決めたもの。定義と状態は変えず、語りの根拠だけを足す
+                items.append({**old, "group": old.get("group", kind_group), "evidence": evidence,
+                              "questions": [], "origin": "existing" if p.id in case_ids else "carried"})
+                continue
             # 状態は Python が決める：語りに言葉になった根拠があり、定義案があるときだけ下書き
             status = "draft" if p.definition and any(e["defined"] for e in ev) else "needs_answer"
             items.append({
                 "id": p.id,
-                "label": p.label,
+                "label": old.get("label", p.label) if old else p.label,
                 "kind": p.kind,
                 "group": kind_group,
                 "definition": p.definition if status == "draft" else None,
                 "definition_hint": None if status == "draft" else p.definition,
                 "status": status,
                 "owner_hint": p.owner_hint,
-                "evidence": [{"source": f"interviews/{e['interview']}.md", "line": e["line"], "quote": e["quote"], "speaker": e["speaker"]} for e in ev],
+                "evidence": evidence,
                 "questions": p.questions[:3],
-                "used_by": [],
+                "used_by": old.get("used_by", []) if old else [],
+                "origin": ("existing" if p.id in case_ids else "carried") if old else "new",
             })
-    write_ledger(items, out_dir / "ledger")
-    questions = top_questions(items, hubs)
-    (out_dir / "questions.md").write_text(render_questions(questions, hubs), encoding="utf-8")
-    result = {"items": items, "questions": questions, "hubs": [h["name"] for h in hubs], "cost_usd": res.cost_usd}
-    (out_dir / "ledger.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-    return result
+    # 語りに出てこなかった、今ある台帳の項目もそのまま残す
+    for id_, old in existing.items():
+        if id_ not in seen:
+            items.append({**old, "group": old.get("group", "item"), "evidence": old.get("evidence", []),
+                          "questions": old.get("questions", []), "origin": "existing" if id_ in case_ids else "carried",
+                          "not_in_narratives": True})
+    questions = top_questions([i for i in items if i["status"] != "approved"], hubs)
+    return {"items": items, "questions": questions, "hubs": [h["name"] for h in hubs],
+            "counts": {"existing": sum(i["origin"] == "existing" for i in items), "new": sum(i["origin"] == "new" for i in items)}}
 
 
 def write_ledger(items: list[dict], directory: Path) -> None:
@@ -83,8 +131,9 @@ def write_ledger(items: list[dict], directory: Path) -> None:
     for old in directory.glob("*.yaml"):
         old.unlink()
     for it in items:
-        doc = {k: it[k] for k in ("id", "label", "kind", "definition", "status", "owner_hint", "evidence", "questions", "used_by")}
-        doc["note"] = "仮説。状態の承認は人が行う（anmoku approve）"
+        doc = {k: it.get(k) for k in ("id", "label", "kind", "definition", "status", "owner_hint", "evidence", "questions", "used_by")}
+        doc["origin"] = it.get("origin", "new")
+        doc["note"] = it.get("note") if it.get("origin") == "existing" and it.get("note") else "仮説。状態の承認は人が行う（anmoku approve）"
         (directory / f"{it['id']}.yaml").write_text(yaml.safe_dump(doc, allow_unicode=True, sort_keys=False), encoding="utf-8")
 
 

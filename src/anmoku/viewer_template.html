@@ -125,7 +125,6 @@ table.t th{color:var(--muted);font-weight:600}
 .badge.crit{background:#1d3a2c;color:#8fe0b5}
 .chip.unnamed{background:transparent;border:1px dashed #4a5d78;color:var(--muted)}
 
-.loadbtn{width:100%;padding:14px;font-size:16px;margin:4px 0 8px}
 .steps li{cursor:pointer}
 .steps li:hover{background:var(--panel2)}
 .steps li.viewing{outline:1px solid var(--accent)}
@@ -157,6 +156,19 @@ details.rounds summary{cursor:pointer;color:var(--muted);font-size:13px;margin-b
 .ans code{font-size:11.5px;background:var(--chip);border-radius:4px;padding:1px 5px}
 .ansmark{font-size:11px;color:#8fe0b5;margin-top:3px}
 .qfoot{font-size:12.5px;color:var(--muted)}
+
+.inrow{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;background:var(--panel2)}
+.inlabel{font-size:13px;font-weight:700;margin-bottom:4px}
+.inbtn{background:var(--accent);color:#1b1206;border-color:var(--accent);font-weight:700;width:100%}
+.insum{font-size:12px;color:var(--muted);cursor:pointer;display:flex;justify-content:space-between}
+.insum:hover{color:var(--text)}
+.lgi{border-bottom:1px solid var(--line);padding:6px 0;font-size:13px}
+
+.badge.newb{background:var(--accent);color:#1b1206}
+.badge.oldb{background:#2a2f3a;color:#c9d4e3}
+tr.oldrow td{color:var(--muted)}
+.lgsum{font-size:13px;margin:-4px 0 10px;color:var(--muted)}
+.lgsum b{color:var(--accent2)}
 </style>
 </head>
 <body>
@@ -173,8 +185,13 @@ details.rounds summary{cursor:pointer;color:var(--muted);font-size:13px;margin-b
 </nav>
 <main id="t1" class="tab">
   <section class="panel">
-    <h2>ヒアリング記録</h2>
-    <button class="primary loadbtn" id="load">ヒアリング記録を読み込む</button>
+    <h2>入力</h2>
+    <div class="inrow"><div class="inlabel">業務フロー（今あるもの）</div>
+      <button class="inbtn" id="loadFlow">読み込む</button><div class="insum" id="sumFlow" hidden></div></div>
+    <div class="inrow"><div class="inlabel">定義台帳（今あるもの）</div>
+      <button class="inbtn" id="loadLedger">読み込む</button><div class="insum" id="sumLedger" hidden></div></div>
+    <div class="inrow"><div class="inlabel">ヒアリング記録</div>
+      <button class="inbtn" id="load">読み込む</button></div>
     <ol class="steps" id="steps" hidden></ol>
     <div class="btns" id="btns" hidden>
       <button id="prev">◀ 戻る</button>
@@ -187,7 +204,7 @@ details.rounds summary{cursor:pointer;color:var(--muted);font-size:13px;margin-b
     <div class="stagehead"><span class="big" id="stageTitle">0人目</span><span class="muted" id="stageSub"></span></div>
     <div id="board"></div>
   </section>
-  <section class="panel ev" id="ev"><div class="empty">ヒアリング記録を読み込むと、ヒアリングした人が並びます</div></section>
+  <section class="panel ev" id="ev"><div class="empty">読み込んだものを選ぶと、ここに中身が出ます</div></section>
 </main>
 <main id="t2" class="tab tab2" hidden></main>
 <main id="t3" class="tab tab3" hidden></main>
@@ -199,7 +216,7 @@ details.rounds summary{cursor:pointer;color:var(--muted);font-size:13px;margin-b
 <script>
 const DATA = /*__ANMOKU_DATA__*/null;
 const ROW_H = 96;
-let k = 0, selected = null, loaded = false, viewing = null;
+let k = 0, selected = null, loaded = false, viewing = null, loadedFlow = false, loadedLedger = false;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
@@ -211,7 +228,7 @@ const TX = DATA.transcripts || {};
 const utterances = id => (TX[id] || []).filter(l => l && !l.startsWith("#") && !l.startsWith("聞き手")).length;
 
 function renderSteps(){
-  $("load").hidden = loaded; $("steps").hidden = !loaded; $("btns").hidden = !loaded;
+  $("load").hidden = loaded; $("steps").hidden = !loaded; $("btns").hidden = !allLoaded();
   $("steps").innerHTML = DATA.interviews.map((iv, i) =>
     `<li class="${i < k ? "done" : ""} ${i === k - 1 ? "cur" : ""} ${viewing === iv.id ? "viewing" : ""}" data-id="${esc(iv.id)}" title="クリックでヒアリング記録を表示">
       <span class="n">${i + 1}</span><span class="who">${esc(iv.title.replace("ヒアリング記録：", ""))}<small>${esc(iv.id)}.md・発言 ${utterances(iv.id)}</small></span><span class="open">記録 ›</span></li>`).join("");
@@ -232,6 +249,33 @@ function showTranscript(id){
     <div class="tx">${lines.map((l, i) => l.trim() ? `<div class="tl ${l.startsWith("聞き手") ? "ask" : ""} ${cited.has(i + 1) ? "cited" : ""}"><span class="ln">${i + 1}</span><span>${esc(l)}</span></div>` : "").join("")}</div>`;
 }
 
+const IN = DATA.inputs || {flow: [], ledger: []};
+const allLoaded = () => loaded && loadedFlow && loadedLedger;
+function renderInputs(){
+  $("loadFlow").hidden = loadedFlow; $("loadLedger").hidden = loadedLedger;
+  const lanes = [...new Set(IN.flow.map(r => r.lane))];
+  $("sumFlow").hidden = !loadedFlow;
+  $("sumFlow").innerHTML = `${esc(IN.flow_file || "flow.md")}・レーン ${lanes.length}・仕事 ${IN.flow.length}<span class="open">見る ›</span>`;
+  $("sumLedger").hidden = !loadedLedger;
+  const appr = IN.ledger.filter(x => x.status === "approved").length;
+  $("sumLedger").innerHTML = `${IN.ledger.length}件（承認済み ${appr}件）<span class="open">見る ›</span>`;
+}
+function showFlowInput(){
+  viewing = "flow"; renderSteps();
+  $("ev").innerHTML = `<h2>今ある業務フロー（公式）</h2><h3>${esc(DATA.title)}</h3><div class="why">${esc(IN.flow_file || "flow.md")}</div>` +
+    `<table class="t"><tr><th>レーン</th><th>担当</th><th>仕事</th></tr>${IN.flow.map(r => `<tr><td>${esc(r.lane)}</td><td>${esc(r.owner)}</td><td>${esc(r.task)}</td></tr>`).join("")}</table>`;
+}
+function showLedgerInput(){
+  viewing = "ledger"; renderSteps();
+  $("ev").innerHTML = `<h2>今ある定義台帳</h2><div class="why">会社がすでに持っている用語・決まりごと。${IN.ledger.length}件</div>` +
+    (IN.ledger.length ? IN.ledger.map(x => `<div class="lgi"><b>${esc(x.label)}</b> <span class="st ${x.status}">${ST0[x.status] || x.status}</span><div>${esc(x.definition || "（定義なし）")}</div><div class="ameta">担当：${esc(x.owner_hint || "-")}</div></div>`).join("")
+      : `<div class="empty">今ある定義台帳はありません（案件フォルダに ledger/ を置くと読み込みます）</div>`);
+}
+const ST0 = {needs_answer: "回答待ち", draft: "下書き", approved: "承認済み"};
+$("loadFlow").onclick = () => { loadedFlow = true; renderInputs(); renderSteps(); renderBoard(false); showFlowInput(); };
+$("loadLedger").onclick = () => { loadedLedger = true; renderInputs(); renderSteps(); renderBoard(false); showLedgerInput(); };
+$("sumFlow").onclick = showFlowInput;
+$("sumLedger").onclick = showLedgerInput;
 $("load").onclick = () => { loaded = true; renderSteps(); renderBoard(false); };
 
 function badge(c){
@@ -255,11 +299,11 @@ function countUp(el, from, to){
 function renderBoard(forward){
   const board = $("board");
   if (k === 0){
-    board.innerHTML = loaded
-      ? `<div class="empty">${DATA.interviews.length}人分のヒアリング記録を読み込みました。<br>左の人を選ぶと記録が読めます。「次の人を追加」で、1人目から分析の結果を見ます</div>`
-      : `<div class="empty">まず「ヒアリング記録を読み込む」を押してください</div>`;
+    board.innerHTML = allLoaded()
+      ? `<div class="empty">今ある業務フロー・定義台帳と、${DATA.interviews.length}人分のヒアリング記録を読み込みました。<br>左の項目を選ぶと中身が読めます。「次の人を追加」で、1人目から分析の結果を見ます</div>`
+      : `<div class="empty">左の「入力」で、業務フロー・定義台帳・ヒアリング記録を読み込んでください</div>`;
     $("stageTitle").textContent = "0人目"; $("stageSub").textContent = "";
-    if (!viewing) $("ev").innerHTML = `<div class="empty">${loaded ? "左の人を選ぶと、ヒアリング記録の全文が出ます" : "ヒアリング記録を読み込むと、ヒアリングした人が並びます"}</div>`;
+    if (!viewing) $("ev").innerHTML = `<div class="empty">読み込んだものを選ぶと、ここに中身が出ます</div>`;
     return;
   }
   const st = DATA.stages[k - 1];
@@ -326,7 +370,7 @@ $("reset").onclick = () => { $("board").innerHTML = ""; selected = null; viewing
 document.addEventListener("keydown", e => { if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); go(k + 1); } if (e.key === "ArrowLeft") go(k - 1); });
 renderSteps(); renderBoard(false);
 const m = location.hash.match(/k=(\d+)/);
-if (location.hash.includes("loaded") || m) { loaded = true; renderSteps(); renderBoard(false); }
+if (location.hash.includes("loaded") || m) { loaded = loadedFlow = loadedLedger = true; renderInputs(); renderSteps(); renderBoard(false); }
 if (m) { const target = Math.min(+m[1], DATA.stages.length); if (target > 1) { k = target - 1; renderSteps(); renderBoard(false); } go(target); }
 
 // ---------- タブ ----------
@@ -381,9 +425,11 @@ function renderTab3(){
   const ans = DATA.answers || [];
   const findAns = q => ans.find(a => a.ledger_id === q.ledger_id && a.question === q.question);
   const answeredIds = new Set(ans.map(a => a.ledger_id));
+  const nNew = lg.items.filter(i => i.origin === "new").length, nOld = lg.items.length - nNew;
   const left = `<section class="panel"><h2>定義台帳（${(lg.hubs || []).length ? esc(lg.hubs.join("・")) + "（ハブの仮説）などが持つ" : ""}判断基準・用語を、根拠つきで並べたもの）</h2>
+    <div class="lgsum">今ある台帳 ${nOld}件 ＋ <b>語りから見つかった、台帳に無いもの ${nNew}件</b></div>
     <table class="t"><tr><th>用語・判断基準</th><th>状態</th><th>答えを持つ人（仮説）</th><th>根拠</th></tr>` +
-    lg.items.map(it => `<tr><td>${esc(it.label)}${it.group === "implicit_rule" ? ' <span class="badge half">フローに無い決まり</span>' : ""}</td>
+    [...lg.items].sort((a, b) => (a.origin === "new" ? 0 : 1) - (b.origin === "new" ? 0 : 1)).map(it => `<tr class="${it.origin === "new" ? "newrow" : "oldrow"}"><td>${it.origin === "new" ? '<span class="badge newb">台帳に無い</span> ' : '<span class="badge oldb">今ある台帳</span> '}${esc(it.label)}${it.group === "implicit_rule" ? ' <span class="badge half">フローに無い決まり</span>' : ""}</td>
       <td><span class="st ${it.status}">${ST[it.status] || it.status}</span>${answeredIds.has(it.id) && it.status !== "approved" ? '<div class="ansmark">答えあり・承認待ち</div>' : ""}</td><td>${esc(it.owner_hint || "-")}</td>
       <td title="${esc(it.evidence.map(e => e.source + ":" + e.line + " " + e.quote).join("\n"))}">${it.evidence.length}件</td></tr>`).join("") + `</table></section>`;
   const right = `<section class="panel"><h2>次のヒアリングで聞く質問（優先順・5つ）と答え</h2>` +

@@ -47,11 +47,12 @@ def cmd_ledger(case: Path, out: Path, a) -> dict:
     detect = _load(out, "detect.json")
     if not detect:
         raise SystemExit("先に anmoku detect を実行してください")
-    r = build_ledger(detect, out, model=a.model)
+    r = build_ledger(detect, out, model=a.model, existing_dir=case / "ledger")
     st = {"needs_answer": "回答待ち", "draft": "下書き", "approved": "承認済み"}
-    print(f"定義台帳：{len(r['items'])}件（{out / 'ledger'}）")
+    print(f"定義台帳：{len(r['items'])}件（今ある台帳から {r['counts']['existing']}件・台帳に無い新しい候補 {r['counts']['new']}件）（{out / 'ledger'}）")
     for it in r["items"]:
-        print(f"  [{st[it['status']]}] {it['label']}  → 答えを持つ人（仮説）：{it.get('owner_hint') or '-'}")
+        mark = "台帳に無い" if it.get("origin") == "new" else "今ある台帳"
+        print(f"  [{st[it['status']]}・{mark}] {it['label']}  → 答えを持つ人（仮説）：{it.get('owner_hint') or '-'}")
     print(f"\n次のヒアリングで聞く質問（{out / 'questions.md'}）")
     for i, q in enumerate(r["questions"], 1):
         print(f"  {i}. {q['question']}（→ {q['to']}）")

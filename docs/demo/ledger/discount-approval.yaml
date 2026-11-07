@@ -1,13 +1,17 @@
-id: discount-approval-threshold
-label: 値引き・金額の承認基準
+id: discount-approval
+label: 値引きの承認
 kind: rule
-definition: null
-status: needs_answer
+definition: 見積からの値引きは、金額にかかわらず店長の承認を得る。
+status: approved
 owner_hint: 店長
 evidence:
 - source: interviews/01_sales_junior.md
   line: 16
   quote: 金額が一定より大きいのとか、値引きが入るやつは店長の承認が要るんです
+  speaker: 小林
+- source: interviews/01_sales_junior.md
+  line: 20
+  quote: 工事の中身で削れるところがあるかとか、職人さんの手間的にここ下げても大丈夫か
   speaker: 小林
 - source: interviews/01_sales_junior.md
   line: 32
@@ -25,12 +29,10 @@ evidence:
   line: 26
   quote: このくらいまでなら大丈夫かなっていうのは、自分の中であるんです
   speaker: 伊藤
-questions:
-- 店長の承認が必要になる金額や値引き幅は、具体的にいくらから、どんな条件ですか。
-- 値引き可否を判断するとき、粗利は最低どれくらい残すことを基準にしていますか。例外はありますか。
-- 値引きの相談は、店長と課長（佐藤さん）のどちらに、どんな場合に聞く決まりですか。
+questions: []
 used_by:
-- test-spec_v1.md#TC-02
-- agent-design_v2.md#未確定事項3／対象の問い合わせ（値引き）
-- agent-design_v2.md#どの程度まで値引きを認めるか
-note: 仮説。状態の承認は人が行う（anmoku approve）
+- agent-design_v1.md#値引きの承認 | 店長が値引きを認める承
+- test-spec_v1.md#値引きの可否を判断せず、店長の承認に回す
+- agent-design_v2.md#| 値引きの承認 | 店長が値引きを認め
+origin: existing
+note: みどり住設の既存の定義台帳（架空）。公式の業務フローと社内の決まりから作られたもの

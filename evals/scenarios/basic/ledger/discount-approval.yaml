@@ -1,0 +1,10 @@
+id: discount-approval
+label: 値引きの承認
+kind: rule
+definition: 見積からの値引きは、金額にかかわらず店長の承認を得る。
+status: approved
+owner_hint: 店長
+evidence: []
+questions: []
+used_by: []
+note: みどり住設の既存の定義台帳（架空）。公式の業務フローと社内の決まりから作られたもの

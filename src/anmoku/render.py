@@ -139,9 +139,18 @@ def write_dashboard(out: Path, case: Path | None = None) -> Path:
             f = iv_dir / f"{iv['id']}.md"
             if f.exists():
                 transcripts[iv["id"]] = f.read_text(encoding="utf-8").splitlines()
-    from .ledger import load_answers
+    from .flow import load_flow
+    from .ledger import load_answers, load_existing
 
+    # 入力として読み込んだもの：今ある業務フローと、今ある定義台帳
+    base_flow = (case / "flow.md") if case else out.parent / "flow.md"
+    inputs = {
+        "flow": [r.__dict__ for r in load_flow(base_flow).rows] if base_flow.exists() else [],
+        "flow_file": base_flow.name,
+        "ledger": list(load_existing((case / "ledger") if case else out.parent / "ledger").values()),
+    }
     extra = {
+        "inputs": inputs,
         "answers": load_answers(out),
         "transcripts": transcripts,
         "flows": flows,

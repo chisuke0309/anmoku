@@ -1,0 +1,10 @@
+id: schedule-sheet
+label: 工程表
+kind: term
+definition: 工務担当が作成する、現場ごとの職人の手配日と作業の順番を示した表。
+status: approved
+owner_hint: 工務担当
+evidence: []
+questions: []
+used_by: []
+note: みどり住設の既存の定義台帳（架空）。公式の業務フローと社内の決まりから作られたもの

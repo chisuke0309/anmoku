@@ -1,0 +1,13 @@
+id: additional-work-estimate
+label: 追加工事の見積
+kind: term
+definition: 施工中に契約外の工事が必要になったとき、現場監督が作成する見積。
+status: approved
+owner_hint: 現場監督
+evidence: []
+questions: []
+used_by:
+- agent-design_v1.md#追加工事の見積は現場監督が作成する。
+- agent-design_v2.md#追加工事の見積は現場監督が作成する（公式
+origin: existing
+note: みどり住設の既存の定義台帳（架空）。公式の業務フローと社内の決まりから作られたもの

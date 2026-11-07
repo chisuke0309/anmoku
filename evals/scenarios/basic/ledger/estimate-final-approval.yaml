@@ -1,0 +1,10 @@
+id: estimate-final-approval
+label: 見積の最終承認
+kind: rule
+definition: 営業担当が作成した見積は、施主に提出する前に店長が見積システムで承認する。承認の無い見積は提出しない。
+status: approved
+owner_hint: 店長
+evidence: []
+questions: []
+used_by: []
+note: みどり住設の既存の定義台帳（架空）。公式の業務フローと社内の決まりから作られたもの
