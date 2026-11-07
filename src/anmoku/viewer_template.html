@@ -123,6 +123,19 @@ table.t th{color:var(--muted);font-weight:600}
 .critic .src{color:var(--muted)}
 .badge.crit{background:#1d3a2c;color:#8fe0b5}
 .chip.unnamed{background:transparent;border:1px dashed #4a5d78;color:var(--muted)}
+
+.loadbtn{width:100%;padding:14px;font-size:16px;margin:4px 0 8px}
+.steps li{cursor:pointer}
+.steps li:hover{background:var(--panel2)}
+.steps li.viewing{outline:1px solid var(--accent)}
+.steps li .who{display:flex;flex-direction:column;flex:1;min-width:0}
+.steps li .who small{font-size:11px;color:var(--muted)}
+.steps li .open{font-size:11.5px;color:var(--muted)}
+.tx{max-height:600px;overflow:auto;font-size:13px;line-height:1.65}
+.tl{display:flex;gap:8px;padding:2px 4px;border-radius:4px}
+.tl .ln{color:var(--muted);font-size:11px;min-width:22px;text-align:right;padding-top:2px}
+.tl.ask{color:var(--muted)}
+.tl.cited{background:#3f3210;color:#ffe08a}
 </style>
 </head>
 <body>
@@ -138,9 +151,10 @@ table.t th{color:var(--muted);font-weight:600}
 </nav>
 <main id="t1" class="tab">
   <section class="panel">
-    <h2>ヒアリングを1人ずつ追加</h2>
-    <ol class="steps" id="steps"></ol>
-    <div class="btns">
+    <h2>ヒアリング記録</h2>
+    <button class="primary loadbtn" id="load">ヒアリング記録を読み込む</button>
+    <ol class="steps" id="steps" hidden></ol>
+    <div class="btns" id="btns" hidden>
       <button id="prev">◀ 戻る</button>
       <button class="primary" id="next">次の人を追加 ▶</button>
       <button id="reset">最初から</button>
@@ -151,7 +165,7 @@ table.t th{color:var(--muted);font-weight:600}
     <div class="stagehead"><span class="big" id="stageTitle">0人目</span><span class="muted" id="stageSub"></span></div>
     <div id="board"></div>
   </section>
-  <section class="panel ev" id="ev"><div class="empty">候補を選ぶと、根拠の引用が出ます</div></section>
+  <section class="panel ev" id="ev"><div class="empty">ヒアリング記録を読み込むと、ヒアリングした人が並びます</div></section>
 </main>
 <main id="t2" class="tab tab2" hidden></main>
 <main id="t3" class="tab tab3" hidden></main>
@@ -162,7 +176,7 @@ table.t th{color:var(--muted);font-weight:600}
 <script>
 const DATA = /*__ANMOKU_DATA__*/null;
 const ROW_H = 96;
-let k = 0, selected = null;
+let k = 0, selected = null, loaded = false, viewing = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
@@ -170,12 +184,32 @@ $("title").textContent = DATA.title;
 $("q").textContent = `実在 ${DATA.quotes.kept}/${DATA.quotes.total}`;
 $("lanes").innerHTML = DATA.lanes.map(l => `<span>${esc(l)}</span>`).join("");
 
+const TX = DATA.transcripts || {};
+const utterances = id => (TX[id] || []).filter(l => l && !l.startsWith("#") && !l.startsWith("聞き手")).length;
+
 function renderSteps(){
+  $("load").hidden = loaded; $("steps").hidden = !loaded; $("btns").hidden = !loaded;
   $("steps").innerHTML = DATA.interviews.map((iv, i) =>
-    `<li class="${i < k ? "done" : ""} ${i === k - 1 ? "cur" : ""}"><span class="n">${i + 1}</span><span>${esc(iv.title.replace("ヒアリング記録：", ""))}</span></li>`).join("");
+    `<li class="${i < k ? "done" : ""} ${i === k - 1 ? "cur" : ""} ${viewing === iv.id ? "viewing" : ""}" data-id="${esc(iv.id)}" title="クリックでヒアリング記録を表示">
+      <span class="n">${i + 1}</span><span class="who">${esc(iv.title.replace("ヒアリング記録：", ""))}<small>${esc(iv.id)}.md・発言 ${utterances(iv.id)}</small></span><span class="open">記録 ›</span></li>`).join("");
+  $("steps").querySelectorAll("li").forEach(li => li.onclick = () => showTranscript(li.dataset.id));
   $("prev").disabled = k === 0;
   $("next").disabled = k >= DATA.stages.length;
 }
+
+function showTranscript(id){
+  viewing = id; renderSteps();
+  const iv = DATA.interviews.find(x => x.id === id);
+  const st = DATA.stages[k - 1];
+  // いまの段階で根拠に使った行に印をつける
+  const cited = new Set((st?.candidates || []).flatMap(c => c.evidence).filter(e => e.interview === id).map(e => e.line));
+  const lines = TX[id] || [];
+  $("ev").innerHTML = `<h2>ヒアリング記録（全文）</h2><h3>${esc(iv.title.replace("ヒアリング記録：", ""))}</h3>
+    <div class="why">${esc(id)}.md・${lines.length}行${cited.size ? `・黄色の行＝いまの段階で根拠に使った発言（${cited.size}行）` : ""}</div>
+    <div class="tx">${lines.map((l, i) => l.trim() ? `<div class="tl ${l.startsWith("聞き手") ? "ask" : ""} ${cited.has(i + 1) ? "cited" : ""}"><span class="ln">${i + 1}</span><span>${esc(l)}</span></div>` : "").join("")}</div>`;
+}
+
+$("load").onclick = () => { loaded = true; renderSteps(); renderBoard(false); };
 
 function badge(c){
   const hub = (c.hub_hypothesis ? `<span class="badge hubb">ハブの仮説</span>` : "") + (c.critique ? `<span class="badge crit">${c.critique.still_hub ? "反証役を経ても残る" : "反証役が取り下げ"}</span>` : "");
@@ -198,9 +232,11 @@ function countUp(el, from, to){
 function renderBoard(forward){
   const board = $("board");
   if (k === 0){
-    board.innerHTML = `<div class="empty">「次の人を追加」で、1人目のヒアリングから読み始めます</div>`;
+    board.innerHTML = loaded
+      ? `<div class="empty">${DATA.interviews.length}人分のヒアリング記録を読み込みました。<br>左の人を選ぶと記録が読めます。「次の人を追加」で、1人目から分析の結果を見ます</div>`
+      : `<div class="empty">まず「ヒアリング記録を読み込む」を押してください</div>`;
     $("stageTitle").textContent = "0人目"; $("stageSub").textContent = "";
-    $("ev").innerHTML = `<div class="empty">候補を選ぶと、根拠の引用が出ます</div>`;
+    if (!viewing) $("ev").innerHTML = `<div class="empty">${loaded ? "左の人を選ぶと、ヒアリング記録の全文が出ます" : "ヒアリング記録を読み込むと、ヒアリングした人が並びます"}</div>`;
     return;
   }
   const st = DATA.stages[k - 1];
@@ -216,7 +252,7 @@ function renderBoard(forward){
     if (isNew){
       row = document.createElement("div"); row.className = "row"; row.dataset.key = c.key;
       row.style.transform = `translateY(${(st.candidates.length + 1) * ROW_H}px)`; row.style.opacity = 0;
-      row.addEventListener("click", () => { selected = c.key; renderEvidence(); markSel(); });
+      row.addEventListener("click", () => { selected = c.key; viewing = null; renderSteps(); renderEvidence(); markSel(); });
       board.appendChild(row);
     }
     const oldScore = forward ? (c.prev_score || 0) : c.score;
@@ -260,13 +296,14 @@ function renderEvidence(forward){
        <div class="src">${esc(name(e.interview))}　${esc(e.interview)}.md:${e.line}　呼び方：${esc(e.target)}</div></li>`).join("")}</ol>`;
 }
 
-function go(nk){ const fwd = nk > k; k = Math.max(0, Math.min(DATA.stages.length, nk)); renderSteps(); renderBoard(fwd); }
+function go(nk){ viewing = null; const fwd = nk > k; k = Math.max(0, Math.min(DATA.stages.length, nk)); renderSteps(); renderBoard(fwd); }
 $("next").onclick = () => go(k + 1);
 $("prev").onclick = () => go(k - 1);
-$("reset").onclick = () => { $("board").innerHTML = ""; selected = null; go(0); };
+$("reset").onclick = () => { $("board").innerHTML = ""; selected = null; viewing = null; go(0); };
 document.addEventListener("keydown", e => { if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); go(k + 1); } if (e.key === "ArrowLeft") go(k - 1); });
 renderSteps(); renderBoard(false);
 const m = location.hash.match(/k=(\d+)/);
+if (location.hash.includes("loaded") || m) { loaded = true; renderSteps(); renderBoard(false); }
 if (m) { const target = Math.min(+m[1], DATA.stages.length); if (target > 1) { k = target - 1; renderSteps(); renderBoard(false); } go(target); }
 
 // ---------- タブ ----------
@@ -329,6 +366,7 @@ function renderTab3(){
       `<table class="t"><tr><th>定義</th><th>状態</th><th>答えを持つ人（仮説）</th></tr>` + r.pending_definitions.map(id => `<tr><td>${esc(lg[id]?.label || id)}</td><td><span class="st ${lg[id]?.status}">${ST[lg[id]?.status] || "-"}</span></td><td>${esc(lg[id]?.owner_hint || "-")}</td></tr>`).join("") + `</table>` : ""}
   </section>`).join("");
 }
+const v = location.hash.match(/view=([\w-]+)/); if (v) showTranscript(v[1]);
 const tm = location.hash.match(/tab=(\d)/); if (tm) document.querySelector(`#tabs button[data-tab="t${tm[1]}"]`)?.click();
 </script>
 </body>

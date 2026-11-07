@@ -131,7 +131,16 @@ def write_dashboard(out: Path, case: Path | None = None) -> Path:
         if base_path and case_flow.exists():
             flows = {"before": [r.__dict__ for r in load_flow(base_path).rows],
                      "after": [r.__dict__ | {"provisional": r.provisional} for r in load_flow(case_flow).rows]}
+    # ヒアリング記録の全文（画面で、人を選ぶと読めるようにする）
+    iv_dir = next((d for d in ((case / "interviews") if case else None, out.parent / "interviews") if d and d.exists()), None)
+    transcripts = {}
+    if iv_dir:
+        for iv in detect["interviews"]:
+            f = iv_dir / f"{iv['id']}.md"
+            if f.exists():
+                transcripts[iv["id"]] = f.read_text(encoding="utf-8").splitlines()
     extra = {
+        "transcripts": transcripts,
         "flows": flows,
         "ledger": ledger,
         "fix": {k: fix[k] for k in ("status", "rounds", "added_rows", "mermaid_before", "mermaid_after", "all_added_provisional")} if fix else None,
