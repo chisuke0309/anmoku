@@ -154,13 +154,20 @@ def run_flow_review(case: Path, out: Path, *, model: str | None = None, label: s
             "dropped_issues": len(rv.issues) - len(issues), "cost_usd": res.cost_usd}
 
 
-def approve_flow(out: Path) -> Path:
-    """人が承認した版を flow_approved.md として残す（「仮」の印はそのまま。確かめた行から人が外す）。"""
+APPROVED_BY_HUMAN = "人が承認済み"
+APPROVED_BY_FLAG = "承認したものとして扱った（--approve-flow／評価用。人の承認ではない）"
+
+
+def approve_flow(out: Path, *, by_human: bool = True) -> Path:
+    """承認した版を flow_approved.md として残す（「仮」の印はそのまま。確かめた行から人が外す）。
+
+    by_human=False は、デモ・評価で設計書の評価へ進むために「承認したものとして扱う」場合。状態にそう残す。
+    """
     dst = out / "flow_approved.md"
     shutil.copyfile(out / "flow_v2.md", dst)
     fx = out / "fix.json"
     if fx.exists():
         d = json.loads(fx.read_text(encoding="utf-8"))
-        d["status"] = "人が承認済み"
+        d["status"] = APPROVED_BY_HUMAN if by_human else APPROVED_BY_FLAG
         fx.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
     return dst

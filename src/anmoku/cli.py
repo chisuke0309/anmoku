@@ -138,7 +138,8 @@ def main(argv: list[str] | None = None) -> None:
             if a.approve_flow:
                 from .fixflow import approve_flow
 
-                approve_flow(out)
+                approve_flow(out, by_human=False)
+                print("（--approve-flow：修正版フローを、承認したものとして扱って設計書を評価します。人の承認ではありません）")
             for i, dsg in enumerate(a.design):
                 print()
                 cmd_review(case, out, dsg, a.test if i == 0 else None, a)

@@ -141,12 +141,23 @@ def judge(rv: DesignReview, ledger: list[dict], texts: dict[str, str]) -> dict:
             "readiness": readiness, "pending_definitions": pending, "definitions_used": uses}
 
 
+def flow_basis(out: Path, flow_used: str | None) -> str:
+    """物差しにしたフローが、誰の承認を経たものかを言葉にする。"""
+    fx = out / "fix.json"
+    status = json.loads(fx.read_text(encoding="utf-8")).get("status", "") if fx.exists() else ""
+    if flow_used == "flow_approved.md" and status.startswith("人が承認済み"):
+        return "人が承認した業務フロー（「仮」の行を含む）"
+    if flow_used in ("flow_approved.md", "flow_v2.md"):
+        return "修正版の業務フロー（「仮」の行を含む。人の承認はまだ。承認したものとして評価した）"
+    return "公式の業務フロー"
+
+
 def render_review(r: dict, ledger: list[dict]) -> str:
     by_id = {x["id"]: x for x in ledger}
     c = r["counts"]
     lines = [f"# 設計書の評価（関門2）：{r['design']}", "",
              f"**判定：{r['verdict']}**（重大{c['重大']}・中{c['中']}・条件{c['条件']}・軽{c['軽']}）", "",
-             "評価に使った物差し：人が承認した業務フロー（「仮」の行を含む）と定義台帳。判定の規則は Python で固定（重大か中が1件でもあれば差し戻し、"
+             f"評価に使った物差し：{r.get('flow_basis', '業務フロー')}と定義台帳。判定の規則は Python で固定（重大か中が1件でもあれば差し戻し、"
              "承認されていない定義に頼る部分が残るあいだは合格にしない）。", ""]
     for f in r["findings"]:
         basis = ""
@@ -206,6 +217,7 @@ def run_review(case: Path, out: Path, design_name: str, *, test_name: str | None
     r = review_design(design, flow, out / "ledger", out, test_spec=test, model=model,
                       label=f"design-evaluator-{design.stem}")
     r["flow_used"] = flow.name
+    r["flow_basis"] = flow_basis(out, flow.name)
     ledger = [yaml.safe_load(p.read_text(encoding="utf-8")) for p in sorted((out / "ledger").glob("*.yaml"))]
     mark_used_by(out / "ledger", r)
     (out / f"review_{design.stem}.json").write_text(json.dumps(r, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -222,7 +234,10 @@ def rejudge(case: Path, out: Path, design_name: str, *, test_name: str | None = 
     ledger = [yaml.safe_load(p.read_text(encoding="utf-8")) for p in sorted((out / "ledger").glob("*.yaml"))]
     texts = {"設計書": norm(design.read_text(encoding="utf-8")),
              "テスト仕様": norm(test.read_text(encoding="utf-8")) if test else ""}
-    r = judge(rv, ledger, texts) | {"design": design.name, "test_spec": test.name if test else None, "cost_usd": 0.0}
+    prev = out / f"review_{design.stem}.json"
+    flow_used = json.loads(prev.read_text(encoding="utf-8")).get("flow_used") if prev.exists() else None
+    r = judge(rv, ledger, texts) | {"design": design.name, "test_spec": test.name if test else None, "cost_usd": 0.0,
+                                    "flow_used": flow_used, "flow_basis": flow_basis(out, flow_used)}
     (out / f"review_{design.stem}.json").write_text(json.dumps(r, ensure_ascii=False, indent=2), encoding="utf-8")
     (out / f"review_{design.stem}.md").write_text(render_review(r, ledger), encoding="utf-8")
     return r

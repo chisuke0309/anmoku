@@ -323,9 +323,8 @@ function renderTab3(){
   if (!rs.length) { el.innerHTML = `<section class="panel"><div class="empty">まだ設計書を評価していません（anmoku review）</div></section>`; return; }
   el.innerHTML = rs.map(r => `<section class="panel"><h2>別のAIが作った設計書：${esc(r.design)}${r.test_spec ? "＋" + esc(r.test_spec) : ""}</h2>
     <div class="verdict ${r.verdict}">${esc(r.verdict)}</div>
-    <div style="color:var(--muted);font-size:13px;margin-bottom:10px">重大${r.counts["重大"]}・中${r.counts["中"]}・条件${r.counts["条件"]}・軽${r.counts["軽"]}　（物差し：承認済みのフロー＋定義台帳。判定の規則はPythonで固定）</div>
-    ${r.findings.slice(0, 6).map(f => `<div class="fd ${f.severity}"><span class="sev">[${f.severity}]</span>観点${f.aspect}　${esc(f.target)} ${esc(f.location)}<br>「${esc(f.design_quote)}」<div>${esc(f.problem)}</div><div class="cond">合格の条件：${esc(f.pass_condition)}</div></div>`).join("")}
-    ${r.findings.length > 6 ? `<div style="color:var(--muted);font-size:12.5px">ほか ${r.findings.length - 6}件（review_*.md）</div>` : ""}
+    <div style="color:var(--muted);font-size:13px;margin-bottom:10px">重大${r.counts["重大"]}・中${r.counts["中"]}・条件${r.counts["条件"]}・軽${r.counts["軽"]}　（物差し：${esc(r.flow_basis || "業務フロー")}＋定義台帳。判定の規則はPythonで固定）</div>
+    ${r.findings.map(f => `<div class="fd ${f.severity}"><span class="sev">[${f.severity}]</span>観点${f.aspect}　${esc(f.target)} ${esc(f.location)}<br>「${esc(f.design_quote)}」<div>${esc(f.problem)}</div><div class="cond">合格の条件：${esc(f.pass_condition)}</div></div>`).join("")}
     ${r.pending_definitions.length ? `<h2 style="margin-top:12px">合格に残る条件：承認されていない定義 ${r.pending_definitions.length}件</h2>` +
       `<table class="t"><tr><th>定義</th><th>状態</th><th>答えを持つ人（仮説）</th></tr>` + r.pending_definitions.map(id => `<tr><td>${esc(lg[id]?.label || id)}</td><td><span class="st ${lg[id]?.status}">${ST[lg[id]?.status] || "-"}</span></td><td>${esc(lg[id]?.owner_hint || "-")}</td></tr>`).join("") + `</table>` : ""}
   </section>`).join("");
