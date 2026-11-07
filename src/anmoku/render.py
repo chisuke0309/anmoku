@@ -104,6 +104,51 @@ def write_viewer(detect: dict, out_path: Path, title: str = "", extra: dict | No
     return out_path
 
 
+def _strip_provisional(s: str) -> str:
+    return s.replace("（仮）", "").replace("(仮)", "").strip()
+
+
+def _hits_hub(lane: str, owner: str, hub: dict) -> bool:
+    """AI が足した行のレーン（または担当）が、ハブの呼び方に当たるか。
+    役職名だけの呼び方（「課長」など）は、レーン名と完全に一致するときだけ当たりとする（「山本課長」に当てないため）。"""
+    from .score import GENERIC_TITLES, HONORIFICS
+
+    if hub["name"] and hub["name"] in owner:
+        return True
+    for a in hub["aliases"]:
+        stem = HONORIFICS.sub("", a).strip()
+        if not stem:
+            continue
+        if lane == a or lane == stem:
+            return True
+        if stem not in GENERIC_TITLES and stem in lane:
+            return True
+    return False
+
+
+def tidy_lanes(after: list[dict], before: list[dict], hubs: list[dict]) -> list[dict]:
+    """画面②のレーンを整える（表示だけ。flow_v2.md は変えない）。
+
+    - 公式フローにある行は変えない
+    - AI が足した行で、レーンが今あるレーン名に（仮）が付いただけなら、今あるレーンに入れる（行の「仮」の表示は残す）
+    - それ以外で、レーンや担当がハブの呼び方に当たるなら、ハブの表示名の1レーンにまとめる
+    """
+    official = {(r["lane"], r["task"]) for r in before}
+    lanes = {r["lane"] for r in before}
+    out = []
+    for r in after:
+        if (r["lane"], r["task"]) in official:
+            out.append(r)
+            continue
+        lane = _strip_provisional(r["lane"])
+        if lane in lanes:
+            out.append(r | {"lane": lane, "provisional": True})
+            continue
+        hub = next((h for h in hubs if _hits_hub(lane, r.get("owner", ""), h)), None)
+        out.append(r | {"lane": f"{hub['name']}（仮）", "provisional": True} if hub else r)
+    return out
+
+
 def _read(p: Path):
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
 
@@ -133,8 +178,11 @@ def write_dashboard(out: Path, case: Path | None = None) -> Path:
         case_flow = out / "flow_v2.md"
         base_path = next((p for p in ((case / "flow.md") if case else None, out.parent / "flow.md") if p and p.exists()), None)
         if base_path and case_flow.exists():
-            flows = {"before": [r.__dict__ for r in load_flow(base_path).rows],
-                     "after": [r.__dict__ | {"provisional": r.provisional} for r in load_flow(case_flow).rows]}
+            before = [r.__dict__ for r in load_flow(base_path).rows]
+            hubs = [{"name": c["name"], "aliases": list(split_aliases(c["aliases"])[0])}
+                    for c in detect["stages"][-1]["candidates"] if c.get("hub_hypothesis")]
+            flows = {"before": before,
+                     "after": tidy_lanes([r.__dict__ | {"provisional": r.provisional} for r in load_flow(case_flow).rows], before, hubs)}
     # ヒアリング記録の全文（画面で、人を選ぶと読めるようにする）
     iv_dir = next((d for d in ((case / "interviews") if case else None, out.parent / "interviews") if d and d.exists()), None)
     transcripts = {}
