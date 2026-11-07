@@ -18,6 +18,7 @@ from .evidence import check_quote
 from .flow import load_flow, to_mermaid
 from .interviews import load_interviews
 from .llm import run_claude
+from .prompts import agent_prompt
 
 REPO = Path(__file__).resolve().parents[2]
 GUARD = REPO / "hooks" / "guard_write.py"
@@ -28,29 +29,9 @@ def guard_settings() -> dict:
                                       "hooks": [{"type": "command", "command": f"python3 '{GUARD}'"}]}]}}
 
 
-FIXER_SYSTEM = """あなたは業務フローの修正役です。評価役の指摘にもとづいて、指定されたフローのファイルだけを Edit ツールで直します。
+FIXER_SYSTEM = agent_prompt("flow-fixer")  # 正本：agents/flow-fixer.md
 
-# 決まり
-- 既存の行は消さない・書き換えない。足りない役割・判断・決まりごとを、行を追加して表す
-- 追加する行は、レーン名・担当・タスクのどれにも「（仮）」を付ける。備考に「仮・要確認（根拠：ファイル名:行）」と書く
-- 追加は指摘にあるものだけ。指摘に無いことを推測で足さない（直しすぎない）
-- 判断の順番がわかる位置（相談している工程の直前）に行を挿入する
-- 表の形式（| レーン | 担当 | タスク | 備考 |）を崩さない。最後に、何をどこに足したかを3行以内で答える
-"""
-
-EVAL_SYSTEM = """あなたは業務フローの評価役です。読み取りだけを行い、ファイルは書きません。
-修正版のフローを、ヒアリングの語りと照らし合わせて確認してください。
-
-# 見ること
-1. 追加された行（「仮」の付いた行）が、語りの内容と矛盾していないか。語りに根拠があるか
-2. 直しすぎていないか（語りに無い役割・判断・数値が足されていないか）
-3. 語りに強い根拠があるのに、まだフローに無いものが残っていないか
-根拠は、語りのファイル名・行番号・原文そのままの引用で示してください。
-
-# 重さ
-- 「仮」の行は未確認であることが前提。同一人物の推定や、細かい言い回し・条件の書き足りなさは「軽微」にする
-- 「重大」は、語りと明らかに逆のことが書かれている、語りに無い役割・数値が足されている、強い根拠があるのに抜けている、のどれかだけ
-- 指摘は重要なものから5件まで"""
+EVAL_SYSTEM = agent_prompt("flow-evaluator")  # 正本：agents/flow-evaluator.md
 
 
 class FlowIssue(BaseModel):

@@ -1,0 +1,8 @@
+{
+  "name": "anmoku",
+  "description": "anmoku（暗黙）：定義されていない役割を見つける評価ツール",
+  "owner": { "name": "chisuke0309", "url": "https://github.com/chisuke0309" },
+  "plugins": [
+    { "name": "anmoku", "source": "./", "description": "ヒアリングから隠れたハブを仮説として見つけ、定義台帳でエージェント設計書を評価する" }
+  ]
+}

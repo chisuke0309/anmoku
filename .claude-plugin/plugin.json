@@ -1,0 +1,10 @@
+{
+  "name": "anmoku",
+  "displayName": "anmoku（暗黙）",
+  "version": "0.1.0",
+  "description": "ヒアリングの語りと業務フローを突き合わせ、フローに定義されていない役割（隠れたハブ）を引用つきの仮説として見つける。定義台帳を物差しに、別のAIが作ったエージェント設計書を作る前に評価する。",
+  "author": { "name": "chisuke0309", "url": "https://github.com/chisuke0309" },
+  "repository": "https://github.com/chisuke0309/anmoku",
+  "license": "MIT",
+  "keywords": ["業務改善", "ヒアリング", "業務フロー", "評価", "agent-design-review"]
+}

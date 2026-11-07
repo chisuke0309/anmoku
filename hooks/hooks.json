@@ -1,0 +1,13 @@
+{
+  "description": "anmoku：評価役は読み取り専用、修正役はフローのファイルだけ書ける（役割を権限で保証する）",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/guard_write.py\"" }
+        ]
+      }
+    ]
+  }
+}
