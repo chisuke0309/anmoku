@@ -7,6 +7,8 @@ LLM は語りに出た用語の観察をまとめ、定義の案と質問を出�
 from __future__ import annotations
 
 import json
+import re
+import unicodedata
 from pathlib import Path
 
 import yaml
@@ -81,24 +83,60 @@ def build_ledger(detect: dict, out_dir: Path, *, model: str | None = None, exist
     return result
 
 
+# 数・割合・金額・期間の言い方（例：二割五分、十万、3日）。承認済みの定義に無い数は「定義に無い基準」とみなす
+QUANTITY = re.compile(r"[0-9０-９一二三四五六七八九十百千万何]+\s*(?:割|分|万|千|円|日|件|%|％|パーセント|時間|週|か月|ヶ月|カ月|年|人|回)")
+
+
+def adds_quantity(quote: str, definition: str | None) -> bool:
+    """引用に、承認済みの定義に書かれていない数・割合・金額があるか（一般的な機械の確認。シナリオに依らない）。"""
+    d = unicodedata.normalize("NFKC", definition or "")
+    return any(m.group(0).replace(" ", "") not in d for m in QUANTITY.finditer(unicodedata.normalize("NFKC", quote)))
+
+
+def _evidence(ev: list[dict]) -> list[dict]:
+    return [{"source": f"interviews/{e['interview']}.md", "line": e["line"], "quote": e["quote"], "speaker": e["speaker"]} for e in ev]
+
+
 def merge_ledger(proposal: LedgerOut, terms: list[dict], existing: dict[str, dict], case_ids: set[str], hubs: list[dict]) -> dict:
-    """LLM の提案と今ある台帳を合わせる（同じ入力なら同じ結果）。"""
+    """LLM の提案と今ある台帳を合わせる（同じ入力なら同じ結果）。
+
+    承認済みの項目の根拠には、その定義を直接支える観察だけを残す。LLM が「定義に無い基準を足している」とした観察と、
+    定義に無い数・割合・金額を含む観察は、承認済みの側から外し「台帳に無い」側に出す（他の新しい項目に無ければ新しく作る）。
+    """
     by_id = {t["id"]: t for t in terms}
+    plists = (("item", proposal.items), ("implicit_rule", proposal.implicit_rules))
+    approved_ids = {i for i, o in existing.items() if o.get("status") == "approved"}
+    # 承認済みでない提案が使っている観察（外した観察の行き先があるかの確認に使う）
+    covered = {r for _, pl in plists for p in pl if p.id not in approved_ids for r in p.evidence_refs if r in by_id}
     items: list[dict] = []
     seen: set[str] = set()
-    for kind_group, plist in (("item", proposal.items), ("implicit_rule", proposal.implicit_rules)):
+    spill: list[dict] = []
+    for kind_group, plist in plists:
         for p in plist:
-            ev = [by_id[r] for r in p.evidence_refs if r in by_id]
-            if not ev or p.id in seen:
-                continue  # 根拠が実在しない項目・重複は捨てる
-            seen.add(p.id)
-            evidence = [{"source": f"interviews/{e['interview']}.md", "line": e["line"], "quote": e["quote"], "speaker": e["speaker"]} for e in ev]
+            if p.id in seen:
+                continue
             old = existing.get(p.id)
             if old and old.get("status") == "approved":
-                # 承認済みは人が決めたもの。定義と状態は変えず、語りの根拠だけを足す
-                items.append({**old, "group": old.get("group", kind_group), "evidence": evidence,
-                              "questions": [], "origin": "existing" if p.id in case_ids else "carried"})
+                refs = [r for r in dict.fromkeys(p.evidence_refs + p.extends_refs) if r in by_id]
+                if not refs:
+                    continue
+                seen.add(p.id)
+                direct = [r for r in p.evidence_refs if r in by_id and r not in p.extends_refs
+                          and not adds_quantity(by_id[r]["quote"], old.get("definition"))]
+                moved = [r for r in refs if r not in direct]
+                # 承認済みは人が決めたもの。定義と状態は変えず、定義を直接支える語りの根拠だけを足す
+                items.append({**old, "group": old.get("group", kind_group), "evidence": _evidence([by_id[r] for r in direct]),
+                              "questions": [], "origin": "existing" if p.id in case_ids else "carried",
+                              "moved_evidence": moved})
+                rest = [r for r in moved if r not in covered]
+                if rest:
+                    spill.append({"from": p, "old": old, "refs": rest, "group": kind_group})
                 continue
+            ev = [by_id[r] for r in p.evidence_refs if r in by_id]
+            if not ev:
+                continue  # 根拠が実在しない項目は捨てる
+            seen.add(p.id)
+            evidence = _evidence(ev)
             # 状態は Python が決める：語りに言葉になった根拠があり、定義案があるときだけ下書き
             status = "draft" if p.definition and any(e["defined"] for e in ev) else "needs_answer"
             items.append({
@@ -115,6 +153,20 @@ def merge_ledger(proposal: LedgerOut, terms: list[dict], existing: dict[str, dic
                 "used_by": old.get("used_by", []) if old else [],
                 "origin": ("existing" if p.id in case_ids else "carried") if old else "new",
             })
+    # 承認済みの定義に無い基準で、他のどの項目にも入っていないもの → 台帳に無い新しい候補（回答待ち）
+    for sp in spill:
+        p, old = sp["from"], sp["old"]
+        nid = f"{p.id}-not-in-ledger"
+        if nid in seen:
+            continue
+        seen.add(nid)
+        ev = [by_id[r] for r in sp["refs"]]
+        label = p.label if p.label != old.get("label") else f"{old.get('label', p.id)}（台帳に無い基準）"
+        qs = p.questions[:3] or [f"「{old.get('label', p.id)}」で、台帳の定義（{old.get('definition')}）に書かれていない基準・範囲・例外を、例とあわせて教えてください。"]
+        items.append({"id": nid, "label": label, "kind": "rule", "group": sp["group"], "definition": None,
+                      "definition_hint": p.definition if p.definition and p.definition != old.get("definition") else None,
+                      "status": "needs_answer", "owner_hint": p.owner_hint, "evidence": _evidence(ev), "questions": qs,
+                      "used_by": [], "origin": "new", "split_from": p.id})
     # 語りに出てこなかった、今ある台帳の項目もそのまま残す
     for id_, old in existing.items():
         if id_ not in seen:

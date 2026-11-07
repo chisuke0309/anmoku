@@ -76,7 +76,11 @@ class LedgerProposal(BaseModel):
     definition: Optional[str] = Field(default=None, description="語りから言える定義。言葉になっていなければ null")
     status: Literal["draft", "needs_answer"]
     owner_hint: Optional[str] = Field(default=None, description="答えを持っていそうな相手（表示名）")
-    evidence_refs: list[str] = Field(description="根拠にした用語観察のID")
+    evidence_refs: list[str] = Field(description="根拠にした用語観察のID。今ある台帳の承認済み項目の id を使うときは、その定義をそのまま述べている・直接支える観察だけ")
+    extends_refs: list[str] = Field(
+        default_factory=list,
+        description="今ある台帳の承認済み項目の id を使うときだけ：その定義に書かれていない基準・数字・範囲・例外・相手を足している観察のID。"
+                    "evidence_refs には入れず、台帳に無い別の項目（新しいID）の evidence_refs に入れる")
     questions: list[str] = Field(description="答えを持つ人への確認の質問（1〜3個）")
 
 
