@@ -86,3 +86,43 @@ def write_viewer(detect: dict, out_path: Path, title: str = "", extra: dict | No
     )
     out_path.write_text(html, encoding="utf-8")
     return out_path
+
+
+def _read(p: Path):
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
+
+
+def write_dashboard(out: Path, case: Path | None = None) -> Path:
+    """anmoku-out/ にある結果をすべて集めて、1枚の画面（index.html）にする。"""
+    import yaml
+
+    detect = _read(out / "detect.json")
+    if not detect:
+        raise SystemExit("detect.json がありません。先に anmoku detect を実行してください")
+    ledger = _read(out / "ledger.json")
+    if ledger and (out / "ledger").exists():
+        # 承認（anmoku approve）を反映するため、状態は YAML の現在値を使う
+        current = {d["id"]: d for d in (yaml.safe_load(p.read_text(encoding="utf-8")) for p in (out / "ledger").glob("*.yaml"))}
+        for it in ledger["items"]:
+            if it["id"] in current:
+                it["status"] = current[it["id"]]["status"]
+                it["definition"] = current[it["id"]].get("definition")
+                it["used_by"] = current[it["id"]].get("used_by", [])
+    fix = _read(out / "fix.json")
+    reviews = [_read(p) for p in sorted(out.glob("review_*.json"))]
+    flows = {}
+    if fix:
+        from .flow import load_flow
+
+        case_flow = out / "flow_v2.md"
+        base_path = next((p for p in ((case / "flow.md") if case else None, out.parent / "flow.md") if p and p.exists()), None)
+        if base_path and case_flow.exists():
+            flows = {"before": [r.__dict__ for r in load_flow(base_path).rows],
+                     "after": [r.__dict__ | {"provisional": r.provisional} for r in load_flow(case_flow).rows]}
+    extra = {
+        "flows": flows,
+        "ledger": ledger,
+        "fix": {k: fix[k] for k in ("status", "rounds", "added_rows", "mermaid_before", "mermaid_after", "all_added_provisional")} if fix else None,
+        "reviews": reviews,
+    }
+    return write_viewer(detect, out / "index.html", extra=extra)
