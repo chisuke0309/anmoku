@@ -1,0 +1,44 @@
+[
+  {
+    "run": 1,
+    "n_findings": 12,
+    "found": {
+      "D1": true,
+      "D2": true,
+      "D3": true,
+      "D4": true,
+      "D5": true,
+      "D6": false,
+      "TC-07": true
+    },
+    "cost": 0.135434
+  },
+  {
+    "run": 2,
+    "n_findings": 11,
+    "found": {
+      "D1": true,
+      "D2": true,
+      "D3": true,
+      "D4": false,
+      "D5": true,
+      "D6": false,
+      "TC-07": true
+    },
+    "cost": 0.120114
+  },
+  {
+    "run": 3,
+    "n_findings": 12,
+    "found": {
+      "D1": true,
+      "D2": true,
+      "D3": true,
+      "D4": true,
+      "D5": true,
+      "D6": false,
+      "TC-07": true
+    },
+    "cost": 0.11235399999999998
+  }
+]
