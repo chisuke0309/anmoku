@@ -145,7 +145,7 @@ table.t th{color:var(--muted);font-weight:600}
 .fstat.flag{background:#2a2f3a;color:#c9d4e3;border:1px dashed #4a5d78}
 .fsub{color:var(--muted);font-size:13px;margin:6px 0 12px}
 .lanesbox.big .sl{font-size:12.5px}
-.lanesbox.big .sl .tk{padding:6px 6px}
+.lanesbox.big .sl .tk{padding:6px 6px;display:block;overflow:visible;-webkit-line-clamp:unset;word-break:break-all}
 .before{margin-top:18px;opacity:.85}
 .lanesbox.small .sl{font-size:10px;min-width:600px}
 details.rounds{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
@@ -336,12 +336,17 @@ function renderBoard(forward){
       </div>
       <div class="score"><div class="v">${oldScore}</div><div class="d">${forward && delta > 0 && k > 1 ? "+" + (Math.round(delta * 10) / 10) : ""}</div></div>
     </div>`;
-    void row.offsetHeight;
-    setTimeout(() => {
+    const settle = () => {
       row.style.transform = `translateY(${i * ROW_H}px)`; row.style.opacity = 1;
       row.querySelector(".bar i").style.width = pct + "%";
-      if (forward) countUp(row.querySelector(".v"), oldScore, c.score);
-    }, 30);
+    };
+    if (!forward) { row.style.transition = "none"; settle(); void row.offsetHeight; row.style.transition = ""; }
+    else {
+      void row.offsetHeight;
+      setTimeout(() => { settle(); countUp(row.querySelector(".v"), oldScore, c.score); }, 30);
+      // 動きが止まった環境（背景のタブ・画面の書き出しなど）でも、点数と位置を最終の状態にそろえる
+      setTimeout(() => { row.style.transition = "none"; settle(); void row.offsetHeight; row.style.transition = ""; row.querySelector(".v").textContent = String(c.score); }, 1300);
+    }
     row.classList.toggle("jump", forward && k > 1 && delta >= 5);
   });
   if (!selected || !keep.has(selected)) selected = st.candidates[0]?.key;
@@ -410,7 +415,7 @@ function renderTab2(){
 }
 function lanesTable(title, rows, size){
   const lanes = [...new Set(rows.map(r => r.lane))];
-  return `<div class="lanesbox ${size || ""}">${title ? `<h4>${esc(title)}</h4>` : ""}<div class="sl" style="grid-template-columns:120px repeat(${rows.length}, minmax(${size === "small" ? 48 : 64}px, 1fr))">` +
+  return `<div class="lanesbox ${size || ""}">${title ? `<h4>${esc(title)}</h4>` : ""}<div class="sl" style="grid-template-columns:120px ${rows.map(r => size === "small" ? "minmax(48px,1fr)" : r.provisional ? "minmax(92px,1.8fr)" : "minmax(50px,1fr)").join(" ")}">` +
     lanes.map(l => `<div class="ln ${l.includes("仮") ? "p" : ""}">${esc(l)}</div>` + rows.map(r => r.lane === l
       ? `<div class="tk ${r.provisional ? "p" : ""}" title="${esc(r.owner + "：" + r.task + (r.note ? "\n" + r.note : ""))}">${esc(r.task)}</div>` : `<div class="gap"></div>`).join("")).join("") +
     `</div></div>`;
