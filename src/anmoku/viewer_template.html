@@ -39,8 +39,8 @@ button:disabled{opacity:.4;cursor:default}
 .stagehead{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
 .stagehead .big{font-size:20px;font-weight:700}
 .stagehead .muted{color:var(--muted)}
-.row{position:absolute;left:0;right:0;height:96px;transition:transform .7s cubic-bezier(.2,.8,.2,1),opacity .5s;cursor:pointer}
-.card{height:88px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:grid;grid-template-columns:34px 1fr 110px;gap:10px;align-items:center;transition:border-color .4s, box-shadow .4s}
+.row{position:absolute;left:0;right:0;height:108px;transition:transform .7s cubic-bezier(.2,.8,.2,1),opacity .5s;cursor:pointer}
+.card{box-sizing:border-box;height:100px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:grid;grid-template-columns:34px 1fr 110px;gap:10px;align-items:center;transition:border-color .4s, box-shadow .4s}
 .row.sel .card{border-color:#4a5d78}
 .rank{font-size:22px;font-weight:800;color:var(--muted);text-align:center}
 .row:first-child .rank{color:var(--accent)}
@@ -215,7 +215,7 @@ tr.oldrow td{color:var(--muted)}
 </footer>
 <script>
 const DATA = /*__ANMOKU_DATA__*/null;
-const ROW_H = 96;
+const ROW_H = 108;
 let k = 0, selected = null, loaded = false, viewing = null, loadedFlow = false, loadedLedger = false;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
