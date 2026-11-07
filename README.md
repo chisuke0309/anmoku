@@ -100,6 +100,15 @@ claude plugin install anmoku@anmoku
 
 導入後、「このヒアリング記録を anmoku で分析して」のように頼むと、Skill が手順に沿って進めます（候補の確認とフローの承認は、利用者に確かめてから進みます）。
 
+**導入したプラグインから Skill で `anmoku` を動かすところは、まだ確かめられていません。**
+
+- 導入（上のコマンド）は通りました。Skill も呼ばれ、`uv run --project <プラグインの場所> anmoku detect` を実行しようとするところまで進みます
+- 確かめた設定では、作業フォルダの外の読み込みを止めていました（`permissions.blockReadsOutsideWorkingDirectories`）。プラグインは作業フォルダの外（設定フォルダの `plugins/cache/` の下）に入るため、`uv names '…/plugins/cache/anmoku/anmoku/0.1.0', which cannot be checked against the read block (permissions.blockReadsOutsideWorkingDirectories)` と出て止まりました
+- `claude -p` に `--settings` でこの制限を false にして渡し、`--allowedTools` で `uv run` だけを許可して試しましたが、同じメッセージで止まりました。制限が外れなかったため、制限の無い状態で動くかは確かめられていません
+- 普段の対話で `uv run` の許可を求められるかどうかも、確かめていません
+
+確実に動かすには、下の「コマンドとして」の手順（clone して `uv run anmoku …`）を使ってください。
+
 ### コマンドとして
 
 ```bash
