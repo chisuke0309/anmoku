@@ -142,3 +142,30 @@ def approve(directory: Path, item_id: str, definition: str) -> dict:
     doc["status"] = "approved"
     p.write_text(yaml.safe_dump(doc, allow_unicode=True, sort_keys=False), encoding="utf-8")
     return doc
+
+
+# ---------- 質問への答えの記録（仮説を事実へ引き上げる往復の1歩目） ----------
+def answers_path(out: Path) -> Path:
+    return out / "answers.json"
+
+
+def load_answers(out: Path) -> list[dict]:
+    p = answers_path(out)
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else []
+
+
+def record_answer(out: Path, no: int, answer: str, by: str, date: str) -> dict:
+    """質問5つのうち no 番目（1始まり）への答えを記録する。定義台帳とは別のファイルに残し、台帳を作り直しても消えない。
+
+    答えを記録しても、定義は自動では承認しない。確かめた人が anmoku approve で承認する。
+    """
+    ledger = json.loads((out / "ledger.json").read_text(encoding="utf-8"))
+    qs = ledger["questions"]
+    if not 1 <= no <= len(qs):
+        raise SystemExit(f"質問の番号は 1〜{len(qs)} で指定してください")
+    q = qs[no - 1]
+    rec = {"no": no, "ledger_id": q["ledger_id"], "question": q["question"], "answer": answer, "by": by, "date": date}
+    answers = [a for a in load_answers(out) if not (a["ledger_id"] == q["ledger_id"] and a["question"] == q["question"])]
+    answers.append(rec)
+    answers_path(out).write_text(json.dumps(answers, ensure_ascii=False, indent=2), encoding="utf-8")
+    return rec

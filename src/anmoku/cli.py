@@ -5,6 +5,7 @@
   anmoku fix     <案件>                 フローの修正（修正役）→ 再確認（評価役）
   anmoku approve-flow <案件>            人が修正版フローを承認する
   anmoku review  <案件> <設計書.md> [--test <テスト仕様.md>]   関門2：設計書の評価
+  anmoku answer  <案件> <質問番号> "<答え>" --by <答えた人>   質問5つへの答えを記録する
   anmoku approve <案件> <定義ID> "<定義>"  人が回答を確かめた定義を承認済みにする
   anmoku view    <案件>                 画面（HTML）を作り直す
   anmoku run     <案件> [--design ...] [--test ...]   detect → ledger → fix → view（→ review）
@@ -97,6 +98,11 @@ def main(argv: list[str] | None = None) -> None:
     rv = add("review", "関門2：設計書の評価")
     rv.add_argument("design")
     rv.add_argument("--test")
+    an = add("answer", "質問5つへの答えを記録する")
+    an.add_argument("no", type=int, help="質問の番号（1〜5）")
+    an.add_argument("answer", help="答えの内容")
+    an.add_argument("--by", required=True, help="答えた人（例：佐藤課長）")
+    an.add_argument("--date", help="答えた日（既定：今日）")
     ap_ = add("approve", "人が定義を承認済みにする")
     ap_.add_argument("item_id")
     ap_.add_argument("definition")
@@ -123,6 +129,14 @@ def main(argv: list[str] | None = None) -> None:
         print(f"承認しました：{approve_flow(out)}（「仮」の行は、次のヒアリングで確かめてから外してください）")
     elif a.cmd == "review":
         cmd_review(case, out, a.design, a.test, a)
+    elif a.cmd == "answer":
+        import datetime
+
+        from .ledger import record_answer
+
+        rec = record_answer(out, a.no, a.answer, a.by, a.date or datetime.date.today().isoformat())
+        print(f"記録しました：質問{rec['no']}「{rec['question']}」← {rec['by']}（{rec['date']}）")
+        print(f"定義「{rec['ledger_id']}」は、答えを確かめたら anmoku approve で承認してください（自動では承認しません）")
     elif a.cmd == "approve":
         from .ledger import approve
 
@@ -143,7 +157,7 @@ def main(argv: list[str] | None = None) -> None:
             for i, dsg in enumerate(a.design):
                 print()
                 cmd_review(case, out, dsg, a.test if i == 0 else None, a)
-    if a.cmd in ("detect", "ledger", "fix", "approve-flow", "review", "approve", "view", "run"):
+    if a.cmd in ("detect", "ledger", "fix", "approve-flow", "review", "answer", "approve", "view", "run"):
         from .render import write_dashboard
 
         html = write_dashboard(out, case)

@@ -139,7 +139,10 @@ def write_dashboard(out: Path, case: Path | None = None) -> Path:
             f = iv_dir / f"{iv['id']}.md"
             if f.exists():
                 transcripts[iv["id"]] = f.read_text(encoding="utf-8").splitlines()
+    from .ledger import load_answers
+
     extra = {
+        "answers": load_answers(out),
         "transcripts": transcripts,
         "flows": flows,
         "ledger": ledger,
