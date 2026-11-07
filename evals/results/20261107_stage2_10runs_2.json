@@ -1,0 +1,146 @@
+{
+  "runs": 10,
+  "tool": [
+    {
+      "run": 1,
+      "merged": true,
+      "cost": 0.0829
+    },
+    {
+      "run": 2,
+      "merged": false,
+      "cost": 0.089
+    },
+    {
+      "run": 3,
+      "merged": true,
+      "cost": 0.0847
+    },
+    {
+      "run": 4,
+      "merged": true,
+      "cost": 0.0811
+    },
+    {
+      "run": 5,
+      "merged": true,
+      "cost": 0.0866
+    },
+    {
+      "run": 6,
+      "merged": false,
+      "cost": 0.0844
+    },
+    {
+      "run": 7,
+      "merged": true,
+      "cost": 0.0847
+    },
+    {
+      "run": 8,
+      "merged": false,
+      "cost": 0.0915
+    },
+    {
+      "run": 9,
+      "merged": true,
+      "cost": 0.0761
+    },
+    {
+      "run": 10,
+      "merged": false,
+      "cost": 0.0912
+    }
+  ],
+  "baseline": [
+    {
+      "run": 1,
+      "merged": false,
+      "names": [
+        "佐藤さん",
+        "課長（値引き相談の相手）"
+      ],
+      "cost": 0.0811422
+    },
+    {
+      "run": 2,
+      "merged": false,
+      "names": [
+        "佐藤さん",
+        "課長（値引き相談先）"
+      ],
+      "cost": 0.043643799999999996
+    },
+    {
+      "run": 3,
+      "merged": false,
+      "names": [
+        "佐藤さん",
+        "課長（値引き相談先・日中は現場を回っている人）"
+      ],
+      "cost": 0.0405738
+    },
+    {
+      "run": 4,
+      "merged": false,
+      "names": [
+        "佐藤さん",
+        "課長（小林さんが値引きの前に相談する、現場を回っている課長）"
+      ],
+      "cost": 0.0888054
+    },
+    {
+      "run": 5,
+      "merged": false,
+      "names": [
+        "佐藤さん",
+        "課長（名前不明。経理の山本課長とは別人と思われる）"
+      ],
+      "cost": 0.0427818
+    },
+    {
+      "run": 6,
+      "merged": false,
+      "names": [
+        "佐藤さん",
+        "課長（値引き相談の相手。氏名不明）"
+      ],
+      "cost": 0.048411800000000005
+    },
+    {
+      "run": 7,
+      "merged": true,
+      "names": [
+        "佐藤さん（「課長」と呼ばれる人物）"
+      ],
+      "cost": 0.0391538
+    },
+    {
+      "run": 8,
+      "merged": false,
+      "names": [
+        "佐藤さん",
+        "課長（値引き相談先）"
+      ],
+      "cost": 0.0823662
+    },
+    {
+      "run": 9,
+      "merged": false,
+      "names": [
+        "佐藤さん",
+        "値引き相談先の課長"
+      ],
+      "cost": 0.0434258
+    },
+    {
+      "run": 10,
+      "merged": false,
+      "names": [
+        "佐藤さん",
+        "課長（値引き相談の相手）"
+      ],
+      "cost": 0.0812102
+    }
+  ]
+}
