@@ -54,17 +54,29 @@ def link_stages(stages: list[dict]) -> list[dict]:
     return out
 
 
+def split_aliases(aliases: dict[str, int]) -> tuple[dict[str, int], int]:
+    """呼び方を「名指しされた呼び方」と「名指しなし（不明・明示なし・言った人など）の件数」に分ける。"""
+    from .score import is_unknown
+
+    named = {a: n for a, n in aliases.items() if not is_unknown(a)}
+    return named, sum(n for a, n in aliases.items() if is_unknown(a))
+
+
 def viewer_data(detect: dict, title: str = "") -> dict:
     stages = link_stages(detect["stages"])
     slim = []
     for st in stages:
+        for c in st["candidates"]:
+            named, unnamed = split_aliases(c["aliases"])
+            c["aliases"], c["unnamed"] = named, unnamed
+            c["new_aliases"] = [a for a in c["new_aliases"] if a in named]
         slim.append({
             "k": st["k"],
             "added": st["added"],
             "candidates": [
                 {k: c[k] for k in ("key", "name", "aliases", "absence", "absence_reason", "speakers", "deps",
                                    "waits", "score", "formula", "hub_hypothesis", "reason", "merged_from", "prev_score",
-                                   "new_aliases", "evidence", "new_evidence")} | ({"critique": c["critique"]} if c.get("critique") else {})
+                                   "new_aliases", "evidence", "new_evidence", "unnamed")} | ({"critique": c["critique"]} if c.get("critique") else {})
                 for c in st["candidates"][:TOP_N]
             ],
         })

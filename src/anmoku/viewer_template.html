@@ -122,6 +122,7 @@ table.t th{color:var(--muted);font-weight:600}
 .critic b{color:#8fe0b5}
 .critic .src{color:var(--muted)}
 .badge.crit{background:#1d3a2c;color:#8fe0b5}
+.chip.unnamed{background:transparent;border:1px dashed #4a5d78;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -226,9 +227,9 @@ function renderBoard(forward){
       <div style="min-width:0">
         <div class="name">${esc(c.name)} ${badge(c)}${c.merged_from.length ? `<span class="merged">⇐ ${esc(c.merged_from.join("・"))} をまとめた</span>` : ""}</div>
         <div class="chips">${Object.entries(c.aliases).map(([a, n]) =>
-          `<span class="chip ${forward && c.new_aliases.includes(a) && k > 1 ? "new" : ""}">${esc(a)} ×${n}</span>`).join("")}</div>
+          `<span class="chip ${forward && c.new_aliases.includes(a) && k > 1 ? "new" : ""}">${esc(a)} ×${n}</span>`).join("")}${c.unnamed ? `<span class="chip unnamed" title="相手が名指しされていない発言。文脈からこの相手と推定し、点数の件数に含めている">名指しなし ${c.unnamed}件</span>` : ""}</div>
         <div class="bar"><i class="${c.score ? "" : "zero"}" style="width:${forward ? Math.max(2, 100 * (c.prev_score || 0) / DATA.max_score) : pct}%"></i></div>
-        <div class="formula">${esc(c.formula)}</div>
+        <div class="formula">${esc(c.formula)}${c.unnamed ? `（件数のうち名指しなし ${c.unnamed}件）` : ""}</div>
       </div>
       <div class="score"><div class="v">${oldScore}</div><div class="d">${forward && delta > 0 && k > 1 ? "+" + (Math.round(delta * 10) / 10) : ""}</div></div>
     </div>`;

@@ -141,3 +141,9 @@ def test_hub_hypothesis_needs_two_speakers():
     r = {x["id"]: x for x in rank(ents, o, FLOW)}
     assert r["hub"]["hub_hypothesis"] is True
     assert r["one"]["hub_hypothesis"] is False   # 1人の語りだけ・点数も低い
+
+
+def test_unnamed_aliases_are_split():
+    from anmoku.render import split_aliases
+    named, n = split_aliases({"課長": 2, "佐藤さん": 5, "不明": 1, "（明示なし）": 1, "（言った人）": 1, "確認先（呼び方なし）": 1})
+    assert named == {"課長": 2, "佐藤さん": 5} and n == 4

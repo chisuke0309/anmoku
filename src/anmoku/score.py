@@ -21,12 +21,12 @@ HONORIFICS = re.compile(r"(さん|様|くん|ちゃん)$")
 W_SPEAKERS, W_DEPS, W_WAITS = 2.0, 1.0, 1.5
 
 # 相手が名指しされていない呼び方（順位からは外し、統合先の根拠としてだけ使う）
-UNKNOWN = re.compile(r"^[（(]?(不明|明示なし|なし|誰か|不特定)")
+UNKNOWN = re.compile(r"不明|明示なし|呼称なし|呼び方なし|言った人|不特定|誰か|^[（(]?なし[）)]?$")
 EXCLUDED = {"社外", "不明", "組織全体"}
 
 
 def is_unknown(alias: str) -> bool:
-    return bool(UNKNOWN.match(alias.strip()))
+    return bool(UNKNOWN.search(alias.strip()))
 
 
 def absence(entity: dict, aliases: list[str], flow: Flow) -> tuple[float, str]:

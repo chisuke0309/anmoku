@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import json
 import statistics
 import sys
@@ -27,10 +28,29 @@ from anmoku.pipeline import run_detect  # noqa: E402
 from baseline import run_baseline  # noqa: E402
 
 
+# 「経理の山本課長とは別の人」のような、別人だと打ち消す言い回しは照合の前に取り除く
+NEGATION = re.compile(r"[（(、。]?[^（()）、。]*?(とは|と)別(の)?(人|人物)?[^（()）、。]*")
+
+
+def clean(text: str) -> str:
+    return NEGATION.sub("", text)
+
+
 def matches(text: str, rule: dict) -> bool:
+    text = clean(text)
     if any(w in text for w in rule.get("exclude", [])):
         return any(w in text for w in rule.get("strong", []))
     return any(w in text for w in rule.get("strong", []) + rule.get("weak", []))
+
+
+def merged_kacho_sato(texts: list[str]) -> bool:
+    """1つの候補の中に「課長」（山本課長・経理の課長を除く）と「佐藤」の両方があるか。"""
+    for t in texts:
+        t = clean(t)
+        t2 = re.sub(r"(経理の)?山本課長|経理の課長", "", t)
+        if "佐藤" in t2 and "課長" in t2:
+            return True
+    return False
 
 
 def tool_rank(cands: list[dict], rule: dict) -> int | None:
@@ -153,16 +173,22 @@ def summarize(results: list[dict]) -> str:
         lines += [f"## {res['scenario']}（語り{n}本 × {runs}回）", ""]
         has_hub = any("hub_rank" in s for t in res["tool"] for s in t["stages"])
         if has_hub:
-            head = "| k人目まで | ツール：ハブが1位 | ツール：ハブの仮説になった | ツール：別人が混ざらない |"
+            has_merge = all("merged" in s for t in res["tool"] for s in t["stages"])
+            head = "| k人目まで | ツール：ハブが1位 | ツール：ハブの仮説になった | ツール：別人が混ざらない |" + (" ツール：課長と佐藤が同じ候補 |" if has_merge else "")
             for m in modes:
-                head += f" {MODE_LABEL[m]}：1位 | {MODE_LABEL[m]}：上位3 |"
-            lines += [head, "|" + "---|" * (4 + 2 * len(modes))]
+                head += f" {MODE_LABEL[m]}：1位 | {MODE_LABEL[m]}：上位3 |" + (f" {MODE_LABEL[m]}：課長と佐藤が同じ候補 |" if has_merge else "")
+            per = 3 if has_merge else 2
+            lines += [head, "|" + "---|" * (4 + (1 if has_merge else 0) + per * len(modes))]
             for k in range(1, n + 1):
                 t = [t["stages"][k - 1] for t in res["tool"]]
                 row = f"| {k} | {sum(s['hub_rank'] == 1 for s in t)}/{len(t)} | {sum(bool(s.get('hub_hyp_ok')) for s in t)}/{len(t)} | {sum(s['pure'] for s in t)}/{len(t)} |"
+                if has_merge:
+                    row += f" {sum(s['merged'] for s in t)}/{len(t)} |"
                 for m in modes:
                     b = [b for b in res["baseline"] if b["k"] == k and b.get("mode", "directed") == m]
                     row += f" {sum(x['hub_rank'] == 1 for x in b)}/{len(b)} | {sum((x['hub_rank'] or 99) <= 3 for x in b)}/{len(b)} |"
+                    if has_merge:
+                        row += f" {sum(x['merged'] for x in b)}/{len(b)} |"
                 lines.append(row)
             lines.append("")
             tf = [first_rank1([s["hub_rank"] for s in t["stages"]]) for t in res["tool"]]
@@ -190,10 +216,13 @@ def summarize(results: list[dict]) -> str:
                 lines.append(row)
             lines.append("")
         tq = sum(t["quotes"] for t in res["tool"]), sum(t["quotes_total"] for t in res["tool"])
-        lines.append(f"- 引用の実在率：ツール {tq[0]}/{tq[1]}（原文と照合して通った数／LLMが出した数。ツールは通らない引用を自動で捨てる）")
+        dropped = sum(t.get("quotes_dropped", t["quotes_total"] - t["quotes"]) for t in res["tool"])
+        lines.append(f"- 引用の実在率：ツール {tq[0]}/{tq[1]}（原文と照合して通った数／LLMが出した数。照合に通らず捨てた引用 {dropped}件）")
         for m in modes:
             b = [b for b in res["baseline"] if b.get("mode", "directed") == m]
             lines.append(f"- 引用の実在率：{MODE_LABEL[m]} {sum(x['quotes'] for x in b)}/{sum(x['quotes_total'] for x in b)}")
+        spec_ans = yaml.safe_load((ROOT / "evals" / "scenarios" / res["scenario"] / "spec.yaml").read_text(encoding="utf-8"))["answer"]
+        must_not = {k: spec_ans.get(k, {}).get("must_not_flag") for k in ("design_v1", "design_v2")}
         crit = [c for t in res["tool"] for c in t.get("critique", [])]
         if crit:
             lines.append(f"- 反証役：{len(crit)}件の仮説を確認し、取り下げ {sum(not c['still_hub'] for c in crit)}件（強さ：{'・'.join(c['strength'] for c in crit)}）")
@@ -207,7 +236,8 @@ def summarize(results: list[dict]) -> str:
             ids = list(rs[0]["found"])
             det = "、".join(f"{i} {sum(r['found'][i] for r in rs)}/{len(rs)}" for i in ids)
             lines.append(f"- 関門2 {key}：判定 {[r['verdict'] for r in rs]}（正解：{rs[0]['expected']}）／欠陥の検出 {det or '-'}"
-                         + (f"／誤指摘（{'・'.join(sorted({w for r in rs for w in r['must_not_flag_hits']})) or 'なし'}）" if any('must_not_flag_hits' in r for r in rs) else ""))
+                         + (f"／別シナリオの欠陥を誤って指摘（{'・'.join(sorted({w for r in rs for w in r['must_not_flag_hits']})) or 'なし'}）"
+                            if must_not.get(key) else "／誤指摘は測っていない"))
         lines.append(f"- 費用の合計：ツール ${sum(t['cost'] for t in res['tool']):.2f}／貼るだけ ${sum(b['cost'] for b in res['baseline']):.2f}")
         lines.append("")
     return "\n".join(lines)
