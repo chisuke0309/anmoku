@@ -1,0 +1,19 @@
+id: discount-work-feasibility
+label: 工事内容で削れるか・職人の手間的に下げて良いかの判断
+kind: rule
+definition: null
+status: needs_answer
+owner_hint: 工事統括の課長（佐藤さん）
+evidence:
+- source: interviews/01_sales_junior.md
+  line: 20
+  quote: 工事の中身で削れるところがあるかとか、職人さんの手間的にここ下げても大丈夫か
+  speaker: 小林
+questions:
+- 値引きのために工事内容を削れるかを判断するとき、どの点を見ていますか。削ってよい項目と削れない項目の例を教えてください。
+- 職人の手間として下げても大丈夫かは、どんな基準で決めていますか。
+used_by:
+- agent-design_v1.md#処理手順 2「値引き」／エスカレーション
+- agent-design_v2.md#処理手順 3. 値引き 3 ／ 使う用語「値引きの基準」
+- agent-design_v2.md#値引きができるかどうか、どれくらい値引き
+note: 仮説。状態の承認は人が行う（anmoku approve）
