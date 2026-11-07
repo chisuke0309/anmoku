@@ -176,7 +176,7 @@ def render_review(r: dict, ledger: list[dict]) -> str:
             it = by_id.get(i, {})
             lines.append(f"| {it.get('label', i)} | {st.get(it.get('status'), it.get('status'))} | {it.get('owner_hint') or '-'} |")
         lines += ["", "質問は答えを持つ人宛てに作成済み（questions.md）。回答を確かめて `anmoku approve` で承認すると、この条件が外れます。"]
-    lines += ["", "> 本番前チェックの項目は、公開されているAIエージェント導入のチェックリスト（X @mardehaym の投稿）を参考に、自分の言葉で5項目に絞ったもの。"]
+    lines += ["", "> 本番前チェックの項目は、公開されているAIエージェント導入のチェックリスト（X のアカウント `@mardehaym` の投稿）を参考に、自分の言葉で5項目に絞ったもの。"]
     return "\n".join(lines) + "\n"
 
 

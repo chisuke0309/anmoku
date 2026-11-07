@@ -57,13 +57,44 @@ def base_rank(cands: list[dict], rule: dict) -> int | None:
     return None
 
 
-def eval_scenario(name: str, runs: int, out: Path, model: str | None, modes: list[str]) -> dict:
+def eval_scenario(name: str, runs: int, out: Path, model: str | None, modes: list[str], full: bool = False) -> dict:
     base = ROOT / "evals" / "scenarios" / name
     spec = yaml.safe_load((base / "spec.yaml").read_text(encoding="utf-8"))
     ans = spec["answer"]
     ivs = load_interviews(base / "interviews")
     flow_text = (base / "flow.md").read_text(encoding="utf-8")
     n = len(ivs)
+
+    def gate2(rec: dict, tool_out: Path) -> None:
+        """関門2：定義台帳 → フロー修正（承認）→ 設計書の評価。仕込んだ欠陥をキーワードで照合する。"""
+        from anmoku.design_review import run_review
+        from anmoku.fixflow import approve_flow, run_fix
+        from anmoku.ledger import build_ledger
+
+        detect = json.loads((tool_out / "detect.json").read_text(encoding="utf-8"))
+        build_ledger(detect, tool_out, model=model)
+        fx = run_fix(base, tool_out, model=model)
+        approve_flow(tool_out)
+        rec["fix"] = {"rounds": len(fx["rounds"]), "final": fx["rounds"][-1]["review"]["verdict"],
+                      "added": len(fx["added_rows"]), "all_provisional": fx["all_added_provisional"], "removed": len(fx["removed_rows"])}
+        rec["reviews"] = {}
+        for key, dname, tname in (("design_v1", "agent-design_v1.md", "test-spec_v1.md"), ("design_v2", "agent-design_v2.md", None)):
+            if key not in ans or not (base / dname).exists():
+                continue
+            rv = run_review(base, tool_out, dname, test_name=tname if tname and (base / tname).exists() else None, model=model)
+            text = [f"{f['location']} {f['design_quote']} {f['problem']} {f['pass_condition']} {f.get('flow_basis') or ''}" for f in rv["findings"]]
+            text += [f"{x['item']} {x['status']} {x['reason']}" for x in rv["readiness"] if x["status"] != "満たす"]
+            text = [t.replace("二十万", "20万").replace("十万", "10万") for t in text]
+            # 欠陥ごとのキーワードが「すべて」1つの指摘に入っていれば検出とみなす（粗い照合。判定の正しさは summary.json で人が確かめる）
+            found = {d["id"]: any(all(k in t for k in d["keywords"]) for t in text) for d in ans[key].get("defects", [])}
+            for d in ans[key].get("test_defects", []):
+                found[d["id"]] = any(d["id"] in f["location"] for f in rv["findings"])
+            wrong = [w for w in ans[key].get("must_not_flag", []) if any(w in t for t in text)]
+            rec["reviews"][key] = {"verdict": rv["verdict"], "expected": ans[key]["expected_verdict"], "counts": rv["counts"],
+                                   "found": found, "must_not_flag_hits": wrong, "n_findings": len(rv["findings"]),
+                                   "dropped": len(rv["dropped"])}
+            rec["cost"] += rv["cost_usd"]
+        rec["cost"] += fx["cost_usd"]
 
     def one_tool(r: int) -> dict:
         res = run_detect(base / "interviews", base / "flow.md", out / name / f"tool-r{r}", model=model, reuse=False)
@@ -77,6 +108,10 @@ def eval_scenario(name: str, runs: int, out: Path, model: str | None, modes: lis
                 s["hub_hyp_ok"] = any(matches(x["name"] + " " + " ".join(x["aliases"]), ans["hub"]["match"]) for x in c if x.get("hub_hypothesis"))
             s["decoys_in_top3"] = [d["name"] for d in ans.get("decoys", []) if (tool_rank(c, d["match"]) or 99) <= 3] if any("match" in d for d in ans.get("decoys", [])) else []
             rec["stages"].append(s)
+        rec["critique"] = [{"name": c["name"], "strength": c["critique"]["strength"], "still_hub": c["critique"]["still_hub"]}
+                           for c in res["stages"][-1]["candidates"] if c.get("critique")]
+        if full:
+            gate2(rec, out / name / f"tool-r{r}")
         return rec
 
     def one_base(r: int, k: int, mode: str) -> dict:
@@ -159,6 +194,20 @@ def summarize(results: list[dict]) -> str:
         for m in modes:
             b = [b for b in res["baseline"] if b.get("mode", "directed") == m]
             lines.append(f"- 引用の実在率：{MODE_LABEL[m]} {sum(x['quotes'] for x in b)}/{sum(x['quotes_total'] for x in b)}")
+        crit = [c for t in res["tool"] for c in t.get("critique", [])]
+        if crit:
+            lines.append(f"- 反証役：{len(crit)}件の仮説を確認し、取り下げ {sum(not c['still_hub'] for c in crit)}件（強さ：{'・'.join(c['strength'] for c in crit)}）")
+        fixes = [t["fix"] for t in res["tool"] if "fix" in t]
+        if fixes:
+            lines.append(f"- フロー修正：往復回数 {[f['rounds'] for f in fixes]}／最後の評価 {[f['final'] for f in fixes]}／追加行がすべて「仮」{sum(f['all_provisional'] for f in fixes)}/{len(fixes)}／既存行を消した回 {sum(f['removed'] > 0 for f in fixes)}")
+        for key in ("design_v1", "design_v2"):
+            rs = [t["reviews"][key] for t in res["tool"] if key in t.get("reviews", {})]
+            if not rs:
+                continue
+            ids = list(rs[0]["found"])
+            det = "、".join(f"{i} {sum(r['found'][i] for r in rs)}/{len(rs)}" for i in ids)
+            lines.append(f"- 関門2 {key}：判定 {[r['verdict'] for r in rs]}（正解：{rs[0]['expected']}）／欠陥の検出 {det or '-'}"
+                         + (f"／誤指摘（{'・'.join(sorted({w for r in rs for w in r['must_not_flag_hits']})) or 'なし'}）" if any('must_not_flag_hits' in r for r in rs) else ""))
         lines.append(f"- 費用の合計：ツール ${sum(t['cost'] for t in res['tool']):.2f}／貼るだけ ${sum(b['cost'] for b in res['baseline']):.2f}")
         lines.append("")
     return "\n".join(lines)
@@ -169,11 +218,12 @@ def main() -> None:
     ap.add_argument("scenarios", nargs="+")
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--model")
-    ap.add_argument("--modes", nargs="+", default=["directed", "general"], help="貼るだけの聞き方")
+    ap.add_argument("--modes", nargs="*", default=["directed", "general"], help="貼るだけの聞き方（空なら比べない）")
+    ap.add_argument("--full", action="store_true", help="定義台帳・フロー修正・設計書の評価（関門2）まで回す")
     a = ap.parse_args()
     out = ROOT / "runs" / "eval" / time.strftime("%Y%m%d-%H%M%S")
     out.mkdir(parents=True, exist_ok=True)
-    results = [eval_scenario(s, a.runs, out, a.model, a.modes) for s in a.scenarios]
+    results = [eval_scenario(s, a.runs, out, a.model, a.modes, a.full) for s in a.scenarios]
     (out / "summary.json").write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
     md = summarize(results)
     (out / "summary.md").write_text(md, encoding="utf-8")
