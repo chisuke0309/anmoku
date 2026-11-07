@@ -1,7 +1,7 @@
 id: priority-customer
-label: 優先のお客さん・絶対ずらせない日・指名職人
+label: 優先のお客さん
 kind: rule
-definition: 前から付き合いのあるお客さんや紹介のお客さんは、工程調整で優先する。ただし一覧は無く、指名職人や動かせない日の条件も営業側の頭の中にある。
+definition: 前から付き合いのあるお客さんや紹介で来たお客さんは、工程の手配で優先して回す。
 status: draft
 owner_hint: 工事統括の課長（佐藤さん）
 evidence:
@@ -13,25 +13,14 @@ evidence:
   line: 16
   quote: 一覧とかは無いんですよ
   speaker: 高橋
-- source: interviews/02_koumu.md
-  line: 26
-  quote: この職人さんじゃないと、みたいなのがあるみたい
-  speaker: 高橋
-- source: interviews/02_koumu.md
-  line: 34
-  quote: 絶対ずらせない日があったりするんで
-  speaker: 高橋
-- source: interviews/02_koumu.md
-  line: 32
-  quote: 玉突きのどこを先にするかって、結局また聞かないと決められなくて
-  speaker: 高橋
 questions:
-- 優先するお客さんはどう見分け、誰がどこに記録していますか。
-- 「この職人でないと」「ずらせない日」はどう把握し、どこに共有しますか。
-- 工程が玉突きになるとき、どの順で調整し、誰が決めますか。
+- 優先の対象は「付き合いのある」「紹介」以外にありますか。どの範囲から優先としますか。
+- 優先を誰がどう伝え、一覧が無い中で後任はどう見分ければよいですか。
+- 優先のお客さんと他の工程が重なったときは、どちらを優先しますか。
 used_by:
-- agent-design_v1.md#優先客 | **定義未確定**（下記参照
-- test-spec_v1.md#優先客に当たるかどうかを断定せず、問い合
-- agent-design_v2.md#| 優先客 | 付き合いのある客・紹介の
+- agent-design_v1.md#処理手順 2 職人の割当
+- agent-design_v1.md#手配では優先客を先にすると回答する。
+- test-spec_v1.md#優先客を先に手配すると回答する。
+- agent-design_v2.md#優先客の範囲は確認待ちで、顧客の一覧もな
 origin: new
 note: 仮説。状態の承認は人が行う（anmoku approve）

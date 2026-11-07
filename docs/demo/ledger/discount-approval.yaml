@@ -4,35 +4,12 @@ kind: rule
 definition: 見積からの値引きは、金額にかかわらず店長の承認を得る。
 status: approved
 owner_hint: 店長
-evidence:
-- source: interviews/01_sales_junior.md
-  line: 16
-  quote: 金額が一定より大きいのとか、値引きが入るやつは店長の承認が要るんです
-  speaker: 小林
-- source: interviews/01_sales_junior.md
-  line: 20
-  quote: 工事の中身で削れるところがあるかとか、職人さんの手間的にここ下げても大丈夫か
-  speaker: 小林
-- source: interviews/01_sales_junior.md
-  line: 32
-  quote: 誰に聞くかって決まりがあるのかは、よくわかんないですけど
-  speaker: 小林
-- source: interviews/01_sales_junior.md
-  line: 32
-  quote: 「値引きはまず聞いときな」って言われたんで
-  speaker: 小林
-- source: interviews/04_sales_senior.md
-  line: 28
-  quote: 二割五分くらい残ってればいいかな
-  speaker: 伊藤
-- source: interviews/04_sales_senior.md
-  line: 26
-  quote: このくらいまでなら大丈夫かなっていうのは、自分の中であるんです
-  speaker: 伊藤
+evidence: []
 questions: []
 used_by:
-- agent-design_v1.md#値引きの承認 | 店長が値引きを認める承
+- agent-design_v1.md#可否をエージェントは判断しない。店長の承
 - test-spec_v1.md#値引きの可否を判断せず、店長の承認に回す
-- agent-design_v2.md#| 値引きの承認 | 店長が値引きを認め
+- agent-design_v2.md#処理手順 3. 値引き 2.
+- agent-design_v2.md#店長が値引きを認める承認
 origin: existing
 note: みどり住設の既存の定義台帳（架空）。公式の業務フローと社内の決まりから作られたもの

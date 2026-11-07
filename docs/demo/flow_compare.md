@@ -61,41 +61,43 @@ flowchart LR
     T3["見積作成"]
     T4["受注・契約"]
   end
-  subgraph L1["工事統括（仮）"]
+  subgraph L1["統括（仮）"]
     direction TB
-    T2["築年数が古い・状態が怪しい物件で、見積に載せる予備費の額を聞く（仮）"]
-    T5["値引きが入る場合、店長に上げる前に相談する（仮）"]
-    T8["職人の割り振りを決める（仮）"]
-    T13["追加工事を進めてよいか確認する（仮）"]
+    T2["難あり物件（築年数が古い等）は見積前に予備費の額を営業が統括へ相談（仮）"]
   end
-  subgraph L2["店長"]
+  subgraph L2["課長（仮）"]
+    direction TB
+    T5["値引きがある場合、店長に上げる前の見積の事前相談（仮）"]
+    T7["値引きは先に課長に聞く（仮）"]
+    T9["職人の割り振り判断（工程表の前提）（仮）"]
+    T15["追加工事を進めてよいかの確認（仮）"]
+  end
+  subgraph L3["店長"]
     direction TB
     T6["見積の最終承認"]
-    T7["値引きの承認"]
+    T8["値引きの承認"]
   end
-  subgraph L3["工務"]
+  subgraph L4["工務"]
     direction TB
-    T9["職人の手配"]
+    T10["職人の手配"]
     T11["工程表の作成"]
   end
-  subgraph L4["工務（仮）"]
+  subgraph L5["現場（仮）"]
     direction TB
-    T10["優先客（付き合いのある・紹介）の指示を受けて工程を組み直す（仮）"]
+    T12["小さい追加（十万円以下）は現場で決める（仮）"]
+    T13["怪しいと思ったら課長に聞く（仮）"]
+    T16["十万円超になりそうな追加は施主に言う前に一声かける（仮）"]
   end
-  subgraph L5["現場"]
+  subgraph L6["現場"]
     direction TB
-    T12["施工管理"]
-    T15["追加工事の見積"]
-    T16["完了報告"]
-  end
-  subgraph L6["現場（仮）"]
-    direction TB
-    T14["十万円を超えそうな追加は施主に言う前に一声かける（仮）"]
+    T14["施工管理"]
+    T17["追加工事の見積"]
+    T18["完了報告"]
   end
   subgraph L7["経理"]
     direction TB
-    T17["請求"]
-    T18["入金確認"]
+    T19["請求"]
+    T20["入金確認"]
   end
   T0 --> T1
   T1 --> T2
@@ -115,12 +117,16 @@ flowchart LR
   T15 --> T16
   T16 --> T17
   T17 --> T18
+  T18 --> T19
+  T19 --> T20
   classDef prov fill:#fff3c4,stroke:#c98a00,stroke-dasharray: 5 3,color:#5a3d00
   classDef added fill:#ffe0d6,stroke:#c0392b,color:#5a1a10
   class T2 prov
   class T5 prov
-  class T8 prov
-  class T10 prov
+  class T7 prov
+  class T9 prov
+  class T12 prov
   class T13 prov
-  class T14 prov
+  class T15 prov
+  class T16 prov
 ```

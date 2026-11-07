@@ -415,7 +415,7 @@ function renderTab2(){
 }
 function lanesTable(title, rows, size){
   const lanes = [...new Set(rows.map(r => r.lane))];
-  return `<div class="lanesbox ${size || ""}">${title ? `<h4>${esc(title)}</h4>` : ""}<div class="sl" style="grid-template-columns:120px ${rows.map(r => size === "small" ? "minmax(48px,1fr)" : r.provisional ? "minmax(92px,1.8fr)" : "minmax(50px,1fr)").join(" ")}">` +
+  return `<div class="lanesbox ${size || ""}">${title ? `<h4>${esc(title)}</h4>` : ""}<div class="sl" style="grid-template-columns:${size === "small" ? 120 : 88}px ${rows.map(r => size === "small" ? "minmax(48px,1fr)" : r.provisional ? "minmax(76px,1.6fr)" : "minmax(42px,1fr)").join(" ")}">` +
     lanes.map(l => `<div class="ln ${l.includes("仮") ? "p" : ""}">${esc(l)}</div>` + rows.map(r => r.lane === l
       ? `<div class="tk ${r.provisional ? "p" : ""}" title="${esc(r.owner + "：" + r.task + (r.note ? "\n" + r.note : ""))}">${esc(r.task)}</div>` : `<div class="gap"></div>`).join("")).join("") +
     `</div></div>`;

@@ -1,0 +1,28 @@
+id: tentative-schedule
+label: 仮で組む工程と納期変動
+kind: rule
+definition: null
+status: needs_answer
+owner_hint: 工事統括の課長（佐藤さん）
+evidence:
+- source: interviews/02_koumu.md
+  line: 26
+  quote: 水回りは、この職人さんじゃないと、みたいなのがあるみたいで
+  speaker: 高橋
+- source: interviews/02_koumu.md
+  line: 12
+  quote: 仮で組んでおくんですよ。たぶんこうだろうなって
+  speaker: 高橋
+- source: interviews/02_koumu.md
+  line: 36
+  quote: 前は2週間って言われてたのが、急に4週間になったりとか
+  speaker: 高橋
+questions:
+- 工程を「仮で組む」のはどんなときで、どの時点で確定にしますか。
+- メーカー納期が変わったとき(例:2週間が4週間)、誰にどう連絡して工程を組み直しますか。
+- 水回りで職人を指定する場合、どの職人がどの工事に対応するか、決め方を教えてください。
+used_by:
+- agent-design_v1.md#処理手順 2 職人の割当
+- agent-design_v2.md#割り振りが出るまで、工務担当は工程表を出
+origin: new
+note: 仮説。状態の承認は人が行う（anmoku approve）
