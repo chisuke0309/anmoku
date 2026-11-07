@@ -128,8 +128,8 @@ def test_link_stages_tracks_merge():
     k1 = out[0]["candidates"][0]["key"]
     last = out[2]["candidates"][0]
     assert last["key"] == k1
-    assert last["merged_from"] == ["佐藤さん"]
-    assert last["new_aliases"] == ["統括"]
+    # 前の段階で別の候補だった「佐藤さん」も、この候補には新しい呼び方としてまとまる（表示は viewer_data が作る）
+    assert last["had_prev"] and last["new_aliases"] == ["佐藤さん", "統括"]
 
 
 def test_hub_hypothesis_needs_two_speakers():

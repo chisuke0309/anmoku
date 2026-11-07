@@ -29,15 +29,16 @@ def link_stages(stages: list[dict]) -> list[dict]:
             )
             if overlaps:
                 key = overlaps[0][1]["key"]
-                merged_from = [p["name"] for _, p in overlaps[1:]]
                 prev_score = overlaps[0][1]["score"]
-                prev_aliases = set().union(*[set(p["aliases"]) for _, p in overlaps])
+                # 「新しい呼び方」は、つながる前の段階の同じ候補に無かった呼び方
+                prev_aliases = set(overlaps[0][1]["aliases"])
+                had_prev = True
             else:
                 key, next_key = f"c{next_key}", next_key + 1
-                merged_from, prev_score, prev_aliases = [], 0.0, set()
+                prev_score, prev_aliases, had_prev = 0.0, set(), False
             cands.append(c | {
                 "key": key,
-                "merged_from": merged_from,
+                "had_prev": had_prev,
                 "prev_score": prev_score,
                 "new_aliases": [a for a in c["aliases"] if a not in prev_aliases],
                 "new_evidence": [e for e in c["evidence"] if e["interview"] == st["added"]["id"]],
@@ -47,7 +48,7 @@ def link_stages(stages: list[dict]) -> list[dict]:
         for c in cands:
             if c["key"] in seen:
                 c["key"], next_key = f"c{next_key}", next_key + 1
-                c["prev_score"], c["new_aliases"] = 0.0, list(c["aliases"])
+                c["prev_score"], c["new_aliases"], c["had_prev"] = 0.0, list(c["aliases"]), False
             seen.add(c["key"])
         out.append(st | {"candidates": cands})
         prev = cands
@@ -70,6 +71,9 @@ def viewer_data(detect: dict, title: str = "") -> dict:
             named, unnamed = split_aliases(c["aliases"])
             c["aliases"], c["unnamed"] = named, unnamed
             c["new_aliases"] = [a for a in c["new_aliases"] if a in named]
+            # 「まとめた」は、前の段階からある候補に、名指しされた新しい呼び方が加わったときだけ出す
+            # （名指しなしの観察が移ってきただけでは、まとめたことにしない）
+            c["merged_from"] = c["new_aliases"] if c["had_prev"] else []
         slim.append({
             "k": st["k"],
             "added": st["added"],
