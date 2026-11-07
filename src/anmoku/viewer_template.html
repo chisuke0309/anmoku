@@ -345,7 +345,7 @@ function renderBoard(forward){
       void row.offsetHeight;
       setTimeout(() => { settle(); countUp(row.querySelector(".v"), oldScore, c.score); }, 30);
       // 動きが止まった環境（背景のタブ・画面の書き出しなど）でも、点数と位置を最終の状態にそろえる
-      setTimeout(() => { row.style.transition = "none"; settle(); void row.offsetHeight; row.style.transition = ""; row.querySelector(".v").textContent = String(c.score); }, 1300);
+      setTimeout(() => { const bar = row.querySelector(".bar i"); row.style.transition = bar.style.transition = "none"; settle(); void row.offsetHeight; row.style.transition = bar.style.transition = ""; row.querySelector(".v").textContent = String(c.score); }, 1300);
     }
     row.classList.toggle("jump", forward && k > 1 && delta >= 5);
   });
