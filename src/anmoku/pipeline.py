@@ -34,7 +34,7 @@ def cross_check(ivs: list[Interview], observations: list[dict]) -> dict:
 
 
 def run_detect(interviews_dir: str | Path, flow_path: str | Path, out_dir: str | Path, *,
-               model: str | None = None, reuse: bool = True, workers: int = 4) -> dict:
+               model: str | None = None, reuse: bool = True, workers: int = 4, critic: bool = True) -> dict:
     out = Path(out_dir)
     (out / "extract").mkdir(parents=True, exist_ok=True)
     log_dir = out / "llm"
@@ -80,6 +80,25 @@ def run_detect(interviews_dir: str | Path, flow_path: str | Path, out_dir: str |
     with ThreadPoolExecutor(max_workers=workers) as ex:
         stages = list(ex.map(_stage, range(1, len(ivs) + 1)))
 
+    # 3) 反証役：最後の段階のハブの仮説ごとに、ハブではない理由を探す（読み取り専用）
+    critic_cost = 0.0
+    if critic:
+        from .critic import critique
+
+        final = stages[-1]["candidates"]
+        hubs = [c for c in final if c.get("hub_hypothesis")]
+        cache = out / "critic.json"
+        cached = json.loads(cache.read_text(encoding="utf-8")) if (reuse and cache.exists()) else {}
+        for c in hubs:
+            key = ",".join(sorted(c["observation_ids"]))
+            if key not in cached:
+                cached[key] = critique(c, ivs, Path(flow_path), out, model=model, label=f"hub-critic-{c['id']}")
+                critic_cost += cached[key]["cost_usd"]
+            c["critique"] = cached[key]
+            if not cached[key]["still_hub"]:
+                c["hub_hypothesis"] = False
+        cache.write_text(json.dumps(cached, ensure_ascii=False, indent=2), encoding="utf-8")
+
     all_obs = [o for e in extracted for o in e["observations"]]
     q_total = sum(e["quote_total"] for e in extracted)
     q_kept = sum(e["quote_kept"] for e in extracted)
@@ -91,7 +110,7 @@ def run_detect(interviews_dir: str | Path, flow_path: str | Path, out_dir: str |
         "cross_check": cross_check(ivs, all_obs),
         "terms": [t for e in extracted for t in e["terms"]],
         "stages": stages,
-        "cost_usd": round(sum(e.get("cost_usd", 0) for e in extracted) + sum(s["cost_usd"] for s in stages), 4),
+        "cost_usd": round(sum(e.get("cost_usd", 0) for e in extracted) + sum(s["cost_usd"] for s in stages) + critic_cost, 4),
     }
     (out / "detect.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     return result

@@ -64,7 +64,7 @@ def viewer_data(detect: dict, title: str = "") -> dict:
             "candidates": [
                 {k: c[k] for k in ("key", "name", "aliases", "absence", "absence_reason", "speakers", "deps",
                                    "waits", "score", "formula", "hub_hypothesis", "reason", "merged_from", "prev_score",
-                                   "new_aliases", "evidence", "new_evidence")}
+                                   "new_aliases", "evidence", "new_evidence")} | ({"critique": c["critique"]} if c.get("critique") else {})
                 for c in st["candidates"][:TOP_N]
             ],
         })

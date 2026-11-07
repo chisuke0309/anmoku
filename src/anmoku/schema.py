@@ -55,9 +55,15 @@ class Resolution(BaseModel):
 
 
 # ---------- 反証役 ----------
+class CounterReason(BaseModel):
+    reason: str
+    file: Optional[str] = Field(default=None, description="根拠の語りのファイル名（フローが根拠なら null）")
+    line: Optional[int] = None
+    quote: Optional[str] = Field(default=None, description="原文そのままの引用、またはフローの行")
+
+
 class Critique(BaseModel):
-    entity_id: str
-    counter_reasons: list[str] = Field(description="この相手が『定義されていない役割』ではない理由。原文やフローの根拠つき")
+    counter_reasons: list[CounterReason] = Field(description="この相手が『定義されていない役割』ではない理由。原文やフローの根拠つき")
     strength: Literal["強い", "弱い", "なし"] = Field(description="反証の強さ")
     still_hub: bool
 

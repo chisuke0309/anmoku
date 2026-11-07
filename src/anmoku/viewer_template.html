@@ -118,6 +118,10 @@ table.t th{color:var(--muted);font-weight:600}
 .sl .tk{background:#24303d;border:1px solid #34445a;border-radius:4px;padding:3px 4px;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical}
 .sl .tk.p{background:#3f3210;border:1px dashed #ffb703;color:#ffe08a}
 .sl .gap{border-bottom:1px dotted #222c38}
+.critic{border:1px solid #2f6b52;background:#13241c;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:12.5px}
+.critic b{color:#8fe0b5}
+.critic .src{color:var(--muted)}
+.badge.crit{background:#1d3a2c;color:#8fe0b5}
 </style>
 </head>
 <body>
@@ -173,7 +177,7 @@ function renderSteps(){
 }
 
 function badge(c){
-  const hub = c.hub_hypothesis ? `<span class="badge hubb">ハブの仮説</span>` : "";
+  const hub = (c.hub_hypothesis ? `<span class="badge hubb">ハブの仮説</span>` : "") + (c.critique ? `<span class="badge crit">${c.critique.still_hub ? "反証役を経ても残る" : "反証役が取り下げ"}</span>` : "");
   return hub + absBadge(c);
 }
 function absBadge(c){
@@ -249,6 +253,7 @@ function renderEvidence(forward){
   const name = id => (DATA.interviews.find(iv => iv.id === id)?.title || id).replace("ヒアリング記録：", "");
   $("ev").innerHTML = `<h2>根拠（原文の引用）</h2><h3>${esc(c.name)}</h3>
     <div class="why">${esc(c.absence_reason)}。${esc(c.reason)}</div>
+    ${c.critique ? `<div class="critic"><b>反証役の確認：${c.critique.still_hub ? "仮説は残る" : "仮説を取り下げ"}</b>（反証の強さ：${esc(c.critique.strength)}）${c.critique.reasons.map(r => `<div>・${esc(r.reason)}${r.quote ? `<span class="src">　${esc(r.file || "フロー")}${r.line ? ":" + r.line : ""}「${esc(r.quote)}」</span>` : ""}</div>`).join("")}</div>` : ""}
     <ol>${[...c.evidence].sort((a, b) => newSet.has(b.interview + ":" + b.line + b.quote) - newSet.has(a.interview + ":" + a.line + a.quote)).map(e =>
       `<li class="${forward && newSet.has(e.interview + ":" + e.line + e.quote) ? "new" : ""}"><span class="k">${esc(e.kind)}</span>「${esc(e.quote)}」
        <div class="src">${esc(name(e.interview))}　${esc(e.interview)}.md:${e.line}　呼び方：${esc(e.target)}</div></li>`).join("")}</ol>`;
