@@ -63,9 +63,30 @@ def split_aliases(aliases: dict[str, int]) -> tuple[dict[str, int], int]:
     return named, sum(n for a, n in aliases.items() if is_unknown(a))
 
 
+def name_chain(c: dict, history: dict[str, list[dict]], ever_merged: set[str]) -> list[dict]:
+    """同じ候補の名前を、段階をまたいでつないだ鎖。別の呼び方をまとめたことがある候補だけに出す（無ければ空）。
+
+    最初の段階は、語り手が実際に使った呼び方（例：「課長」）を出す。名前は LLM が付けた説明つきの名前
+    （例：「課長（現場を回る人）」）なので、語り手の言葉と取り違えないようにするため。
+    2段階目からは、その段階の名前を出し、同じ名前が続いたら回数（count）にまとめる。
+    """
+    hist = history.setdefault(c["key"], [])
+    label = c["name"] if hist else ("・".join(c["aliases"]) or c["name"])
+    if hist and hist[-1]["label"] == label:
+        hist[-1] = hist[-1] | {"count": hist[-1]["count"] + 1}
+    else:
+        hist.append({"label": label, "count": 1})
+    if c["merged_from"]:
+        ever_merged.add(c["key"])
+    return [dict(h) for h in hist] if c["key"] in ever_merged and len(hist) > 1 else []
+
+
 def viewer_data(detect: dict, title: str = "") -> dict:
     stages = link_stages(detect["stages"])
     slim = []
+    # 候補ごとの名前の移り変わり（画面①で「課長 → 工事統括の課長（佐藤さん）×2」と出す）
+    history: dict[str, list[dict]] = {}
+    ever_merged: set[str] = set()
     for st in stages:
         for c in st["candidates"]:
             named, unnamed = split_aliases(c["aliases"])
@@ -74,13 +95,14 @@ def viewer_data(detect: dict, title: str = "") -> dict:
             # 「まとめた」は、前の段階からある候補に、名指しされた新しい呼び方が加わったときだけ出す
             # （名指しなしの観察が移ってきただけでは、まとめたことにしない）
             c["merged_from"] = c["new_aliases"] if c["had_prev"] else []
+            c["chain"] = name_chain(c, history, ever_merged)
         slim.append({
             "k": st["k"],
             "added": st["added"],
             "candidates": [
                 {k: c[k] for k in ("key", "name", "aliases", "absence", "absence_reason", "speakers", "deps",
                                    "waits", "score", "formula", "hub_hypothesis", "reason", "merged_from", "prev_score",
-                                   "new_aliases", "evidence", "new_evidence", "unnamed")} | ({"critique": c["critique"]} if c.get("critique") else {})
+                                   "new_aliases", "evidence", "new_evidence", "unnamed", "chain")} | ({"critique": c["critique"]} if c.get("critique") else {})
                 for c in st["candidates"][:TOP_N]
             ],
         })

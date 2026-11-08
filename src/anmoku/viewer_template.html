@@ -60,7 +60,9 @@ button:disabled{opacity:.4;cursor:default}
 .badge.half{background:#4a3a1d;color:#ffd08a}
 .badge.lane{background:#1d3a2c;color:#8fe0b5}
 .badge.hubb{background:var(--accent);color:#1b1206}
-.merged{font-size:12px;color:var(--accent2);margin-left:6px}
+.name .arrow{color:var(--accent2);margin:0 6px;font-weight:400}
+.name .times{font-size:13px;margin-left:2px}
+.note{font-size:12px;font-weight:400;color:var(--muted)}
 .row.jump .card{border-color:var(--hot);box-shadow:0 0 0 2px rgba(255,93,93,.35),0 0 28px rgba(255,93,93,.35);animation:shake .6s}
 @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
 .formula{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -201,7 +203,7 @@ tr.oldrow td{color:var(--muted)}
     <div class="lanes"><div>公式フローのレーン</div><div id="lanes"></div></div>
   </section>
   <section>
-    <div class="stagehead"><span class="big" id="stageTitle">0人目</span><span class="muted" id="stageSub"></span></div>
+    <div class="stagehead"><span class="big" id="stageTitle">0人目</span></div>
     <div id="board"></div>
   </section>
   <section class="panel ev" id="ev"><div class="empty">読み込んだものを選ぶと、ここに中身が出ます</div></section>
@@ -219,6 +221,9 @@ const ROW_H = 108;
 let k = 0, selected = null, loaded = false, viewing = null, loadedFlow = false, loadedLedger = false;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// 候補の名前の末尾の括弧は anmoku（AI）が付けた補足なので、語り手の言葉と見分けられるよう小さく灰色にする
+const nameHtml = s => { const m = String(s ?? "").match(/^(.+?)（([^（）]+)）$/);
+  return m ? `${esc(m[1])}<span class="note">（${esc(m[2])}）</span>` : esc(s); };
 
 $("title").textContent = DATA.title;
 $("q").textContent = `実在 ${DATA.quotes.kept}/${DATA.quotes.total}`;
@@ -302,13 +307,16 @@ function renderBoard(forward){
     board.innerHTML = allLoaded()
       ? `<div class="empty">今ある業務フロー・定義台帳と、${DATA.interviews.length}人分のヒアリング記録を読み込みました。<br>左の項目を選ぶと中身が読めます。「次の人を追加」で、1人目から分析の結果を見ます</div>`
       : `<div class="empty">左の「入力」で、業務フロー・定義台帳・ヒアリング記録を読み込んでください</div>`;
-    $("stageTitle").textContent = "0人目"; $("stageSub").textContent = "";
+    $("stageTitle").textContent = "0人目";
     if (!viewing) $("ev").innerHTML = `<div class="empty">読み込んだものを選ぶと、ここに中身が出ます</div>`;
     return;
   }
   const st = DATA.stages[k - 1];
-  $("stageTitle").textContent = `${k}人目まで`;
-  $("stageSub").textContent = `＋ ${st.added.title.replace("ヒアリング記録：", "")}`;
+  // 一覧の元になった記録の語り手を並べる（例：「小林さん・高橋さんの記録から」）。最後の人が今回足した人。
+  // 題から語り手が取れない記録があるときは、人数だけを出す
+  const speaker = t => String(t ?? "").replace("ヒアリング記録：", "").trim().split(/\s+/).pop();
+  const names = DATA.stages.slice(0, k).map(s => speaker(s.added.title));
+  $("stageTitle").textContent = names.every(Boolean) ? `${names.join("・")}の記録から` : `${k}人分の記録から`;
   const keep = new Set(st.candidates.map(c => c.key));
   [...board.querySelectorAll(".row")].forEach(r => { if (!keep.has(r.dataset.key)) r.remove(); });
   board.querySelector(".empty")?.remove();
@@ -328,7 +336,7 @@ function renderBoard(forward){
     row.innerHTML = `<div class="card">
       <div class="rank">${i + 1}</div>
       <div style="min-width:0">
-        <div class="name">${esc(c.name)} ${badge(c)}${c.merged_from.length ? `<span class="merged">⇐ 呼び方「${esc(c.merged_from.join("」「"))}」をまとめた</span>` : ""}</div>
+        <div class="name">${c.chain && c.chain.length ? c.chain.map(h => `${nameHtml(h.label)}${h.count > 1 ? `<span class="times">×${h.count}</span>` : ""}`).join(`<span class="arrow">→</span>`) : nameHtml(c.name)} ${badge(c)}</div>
         <div class="chips">${Object.entries(c.aliases).map(([a, n]) =>
           `<span class="chip ${forward && c.new_aliases.includes(a) && k > 1 ? "new" : ""}">${esc(a)} ×${n}</span>`).join("")}${c.unnamed ? `<span class="chip unnamed" title="相手が名指しされていない発言。文脈からこの相手と推定し、点数の件数に含めている">名指しなし ${c.unnamed}件</span>` : ""}</div>
         <div class="bar"><i class="${c.score ? "" : "zero"}" style="width:${forward ? Math.max(2, 100 * (c.prev_score || 0) / DATA.max_score) : pct}%"></i></div>
@@ -360,7 +368,7 @@ function renderEvidence(forward){
   const c = st.candidates.find(x => x.key === selected); if (!c) return;
   const newSet = new Set(c.new_evidence.map(e => e.interview + ":" + e.line + e.quote));
   const name = id => (DATA.interviews.find(iv => iv.id === id)?.title || id).replace("ヒアリング記録：", "");
-  $("ev").innerHTML = `<h2>根拠（原文の引用）</h2><h3>${esc(c.name)}</h3>
+  $("ev").innerHTML = `<h2>根拠（原文の引用）</h2><h3>${nameHtml(c.name)}</h3>
     <div class="why">${esc(c.absence_reason)}。${esc(c.reason)}</div>
     ${c.critique ? `<div class="critic"><b>反証役の確認：${c.critique.still_hub ? "仮説は残る" : "仮説を取り下げ"}</b>（反証の強さ：${esc(c.critique.strength)}）${c.critique.reasons.map(r => `<div>・${esc(r.reason)}${r.quote ? `<span class="src">　${esc(r.file || "フロー")}${r.line ? ":" + r.line : ""}「${esc(r.quote)}」</span>` : ""}</div>`).join("")}</div>` : ""}
     <ol>${[...c.evidence].sort((a, b) => newSet.has(b.interview + ":" + b.line + b.quote) - newSet.has(a.interview + ":" + a.line + a.quote)).map(e =>
